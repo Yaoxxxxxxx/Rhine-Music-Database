@@ -56,59 +56,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # FSR3 超分与插帧需要 FidelityFX SDK；着色器预编译需要 dxc 与 glslang。
-          # 三者都以 submodule 记录，缺 SDK 时 cmake 会静默跳过 FSR 目标，
-          # 因此必须显式递归检出，否则 CI 测不到 FSR 代码路径。
+          # 本地版（T1）：构建固定传 RHINE_ENABLE_FIDELITYFX=OFF，
+          # FidelityFX-SDK 与 glslang 子模块不再检出，FSR/Vulkan 路径整体编译剔除。
           submodules: false
       - name: Select Xcode with MetalFX frame interpolation
         if: runner.os == 'macOS'
         run: bash scripts/select-xcode.sh
-      - name: Check out enabled graphics dependencies
-        shell: bash
-        run: git submodule update --init --recursive FidelityFX-SDK third_party/glslang
-      - name: Check out glslang vendored dependencies
-        # 只有 Vulkan 分支会解析 glslang，但不在 macOS 上跳过：万一 runner 带了
-        # MoltenVK 让 find_package(Vulkan) 成立，跳过就等于把 FSR3 静默关掉，
-        # 而本步骤失败只是告警，多跑一次的代价远小于静默禁用。
-        shell: bash
-        run: |
-          # glslang 16.x 用 known_good.json 而非 .gitmodules 固定依赖，因此
-          # `submodules: recursive` 不会拉取它们。缺任一目录时 cmake/Glslang.cmake
-          # 会回退到系统 glslangValidator，runner 上没有就退化为 FSR3 不可用。
-          set -uo pipefail
-          failed=0
-          clone_pinned() {
-            local subdir="$1" url="$2" commit="$3"
-            local dest="third_party/glslang/$subdir"
-            if [[ -f "$dest/CMakeLists.txt" ]]; then
-              echo "already present: $subdir"
-              return 0
-            fi
-            rm -rf "$dest"
-            mkdir -p "$(dirname "$dest")"
-            git init -q "$dest"
-            git -C "$dest" remote add origin "$url"
-            # 先按 commit 浅抓取；部分服务器不允许按 SHA 抓取，此时退回全量抓取。
-            # 注意全量抓取后必须 checkout 该 commit，不能用 FETCH_HEAD：不带 ref 的
-            # fetch 会让 FETCH_HEAD 指向默认分支最新提交，检出结果就偏离了 pin。
-            if ! git -C "$dest" fetch -q --depth 1 origin "$commit"; then
-              echo "shallow fetch by SHA failed, falling back to full fetch: $subdir"
-              git -C "$dest" fetch -q origin
-            fi
-            git -C "$dest" checkout -q "$commit"
-            test -f "$dest/CMakeLists.txt"
-          }
-          # 检出失败只影响「FSR3 Vulkan 走源码 glslang」这一条路径，不该让整个构建
-          # 直接失败：macOS 上无用，Windows 走 DX12 也不需要它。汇总后作为警告输出。
-          clone_pinned External/spirv-tools \
-            https://github.com/KhronosGroup/SPIRV-Tools.git \
-            ef96ed763b43b59b33b31b362f09a02b729fa1c9 || failed=1
-          clone_pinned External/spirv-tools/external/spirv-headers \
-            https://github.com/KhronosGroup/SPIRV-Headers.git \
-            496543121ce6419f23d6fa5d7194ba66c36212d2 || failed=1
-          if [[ "$failed" -ne 0 ]]; then
-            echo "::warning::glslang 依赖检出失败，FSR3 Vulkan 将回退到系统 glslangValidator"
-          fi
       - uses: actions/setup-node@v4
         with:
           node-version: '26.11.1'
@@ -124,20 +77,6 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
-      # Windows 与 Linux 的默认后端都是 Vulkan（README「图形后端」一节），
-      # 而 Windows runner 镜像不预装 Vulkan SDK：缺 vulkan.h 时 Qt 的
-      # QVulkanInstance / QRhiVulkanInitParams 不会声明，Vulkan 路径根本编不进来，
-      # 默认后端就只能退成 D3D12。装 SDK 让这条路径真正可编译。
-      - name: Install Vulkan SDK
-        if: runner.os == 'Windows'
-        uses: jakoch/install-vulkan-sdk-action@v1
-        with:
-          # 只为编译期需要：头文件与 vulkan-1.lib。不装 SwiftShader / Lavapipe 软光栅，
-          # 运行期是否有可用的物理设备由 vulkanDeviceAvailable() 探测决定，
-          # 探测不到就回退 D3D12，不会因为缺 GPU 而让构建或测试失败。
-          install_runtime: true
-          cache: true
-          stripdown: true
       - name: Resolve DXC cache key
         # 复用签名 = 子模块 rev + 构建配方，而配方里含编译器/ninja/Python 的绝对路径。
         # 因此 key 要同时带上 rev 和工具链标识：rev 换版本、镜像换工具链都会得到新 key，

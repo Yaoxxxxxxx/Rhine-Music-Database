@@ -224,6 +224,7 @@ function buildQt() {
         '-DRHINE_PACKAGE_APP=OFF',
         `-DRHINE_VERSION=${version.version}`,
         `-DRHINE_RELEASE_BUILD=${version.release ? 'ON' : 'OFF'}`,
+        '-DRHINE_ENABLE_FIDELITYFX=OFF',
     ]);
     run('cmake', ['--build', 'output/qt-build']);
     return {
