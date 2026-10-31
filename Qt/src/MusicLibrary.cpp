@@ -939,6 +939,36 @@ QJsonArray MusicLibrary::directoryQueue() const {
         }
         queue.append(value);
     }
+    // T-017 验收反馈：本地文件夹播放按文件夹顺序跨文件夹续播——把当前文件夹之后
+    // 的所有文件夹（首尾相接、按文件夹集合顺序）的曲目追加进队列，当前文件夹放完
+    // 自动切下一个；视图由 followPlayback 跟随真实文件夹。仅文件夹目录生效。
+    if (directory && directory->item["kind"] == "folder" && isLocal() && local && !local->busy) {
+        const auto folderId = directory->item["id"].toString();
+        const auto folders = local->collections("folder");
+        int currentFolder = -1;
+        for (int i = 0; i < folders.size(); ++i) {
+            if (folders.at(i).toObject()["id"].toString() == folderId) {
+                currentFolder = i;
+                break;
+            }
+        }
+        if (currentFolder >= 0) {
+            QSet<QString> queued;
+            for (const auto &value : queue) {
+                queued.insert(value.toObject()["id"].toString());
+            }
+            for (int step = 1; step < folders.size(); ++step) {
+                const auto item = folders.at((currentFolder + step) % folders.size()).toObject();
+                for (const auto &entry : local->tracks(item)) {
+                    const auto song = entry.toObject();
+                    if (!queued.contains(song["id"].toString())) {
+                        queued.insert(song["id"].toString());
+                        queue.append(song);
+                    }
+                }
+            }
+        }
+    }
     return queue;
 }
 
