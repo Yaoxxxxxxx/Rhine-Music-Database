@@ -135,11 +135,23 @@ int main(int argc, char **argv) {
             ok = false;
         }
     };
-    // 可选真实目录验收始终使用临时索引，不写回或移动用户音乐。
-    if (argc >= 3) {
+    // T9 用例 A（qt_local_music_real_regression）：--real-dir 标记走真实目录回归，目录取环境
+    // 变量 RHINE_REAL_MUSIC_DIR；未设置时退出 77，ctest 以 SKIP_RETURN_CODE 记 skipped，不误报失败。
+    // 显式第二参数仍按原样视为目录。可选真实目录验收始终使用临时索引，不写回或移动用户音乐。
+    QString realDir;
+    if (argc >= 3 && QByteArray(argv[2]) == "--real-dir") {
+        realDir = qEnvironmentVariable("RHINE_REAL_MUSIC_DIR");
+        if (realDir.isEmpty()) {
+            qInfo() << "RHINE_REAL_MUSIC_DIR not set; real directory regression skipped";
+            return 77;
+        }
+    } else if (argc >= 3) {
+        realDir = QString::fromLocal8Bit(argv[2]);
+    }
+    if (!realDir.isEmpty()) {
         QTemporaryDir realStorage;
         LocalMusicLibrary real(realStorage.path());
-        real.importPaths({app.arguments().at(2)});
+        real.importPaths({realDir});
         check(waitFor([&] { return !real.busy; }, 120000), "real directory scan completes");
         const auto tracks = real.songs();
         check(!tracks.isEmpty(), "real directory contains valid tracks");
