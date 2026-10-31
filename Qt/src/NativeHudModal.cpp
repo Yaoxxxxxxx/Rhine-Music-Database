@@ -142,17 +142,19 @@ void NativeHud::modalDraw(double width) {
              dark ? QJsonArray{0.15, 0.15, 0.15, 1, "calibratedWhite"} : QJsonArray{0.929, 0.922, 0.894, 1});
         hits = {};
         m_modalControls = true;
+        button(QStringLiteral("导入歌词文件…"), bounds.x() + 10, bounds.y() + 11, bounds.width() - 20, 42,
+               "player:lyrics-import", 15);
         const QStringList sources{"auto", "local"};
         const QStringList labels{"自动（本地优先）", "本地歌词"};
         for (int index = 0; index < sources.size(); ++index) {
             const auto label =
                 (music.player.lyrics.localSource == sources[index] ? QStringLiteral("✓ ") : QString()) +
                 labels[index];
-            button(label, bounds.x() + 10, bounds.y() + 11 + index * 42, bounds.width() - 20, 42,
+            button(label, bounds.x() + 10, bounds.y() + 53 + index * 42, bounds.width() - 20, 42,
                    "player:lyrics-source:" + sources[index], 15);
         }
         // 本地版：解码失败时可手动指定编码重解（T5b 第三层兜底）。
-        text("手动指定编码", bounds.x() + 10, bounds.y() + 11 + sources.size() * 42 + 4, 13, "demibold");
+        text("手动指定编码", bounds.x() + 10, bounds.y() + 53 + sources.size() * 42 + 4, 13, "demibold");
         const QStringList encodings{"utf-8", "gbk", "big5", "shift-jis"};
         const QStringList encodingLabels{"UTF-8", "GBK", "Big5", "Shift-JIS"};
         const auto currentEncoding = music.player.lyrics.localEncodingFor(music.player.current);
@@ -160,7 +162,7 @@ void NativeHud::modalDraw(double width) {
             const auto label =
                 (currentEncoding == encodings[index] ? QStringLiteral("✓ ") : QString()) +
                 encodingLabels[index];
-            button(label, bounds.x() + 10, bounds.y() + 11 + (sources.size() + 1 + index) * 42,
+            button(label, bounds.x() + 10, bounds.y() + 53 + (sources.size() + 1 + index) * 42,
                    bounds.width() - 20, 42, "player:lyrics-encoding:" + encodings[index], 15);
         }
         m_modalControls = false;

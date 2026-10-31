@@ -297,6 +297,8 @@ void NativeHud::playerAction(const QStringList &parts) {
         player.lyrics.selectLocalSource(player.current, parts.value(2));
     } else if (name == "lyrics-encoding" && music.isLocal()) {
         player.lyrics.selectEncoding(player.current, parts.value(2));
+    } else if (name == "lyrics-import" && music.isLocal()) {
+        emit lyricsImportRequested();
         m_lyricsBrowse.reset();
         closeModal();
     } else if (name == "lyrics-retry") {

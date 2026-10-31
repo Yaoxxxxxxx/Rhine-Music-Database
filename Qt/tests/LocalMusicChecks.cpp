@@ -1,5 +1,7 @@
 #include "LocalMusicLibrary.h"
 #include "MusicLibrary.h"
+#include "LyricsController.h"
+#include "AppStorage.h"
 #include "NativeHud.h"
 #include <QAudioBufferOutput>
 #include <QAudioBuffer>
@@ -296,15 +298,45 @@ int main(int argc, char **argv) {
     check(music.provider == "local" && music.local->songs().size() == 1,
           "online provider switch is rejected and local index retained");
     // 缺失本地歌词：状态为 empty 而非 error，且不发起任何请求（T5b）。
+    // 幽灵路径：该文件从不存在，断言不受导入映射状态影响。
     auto noLyrics = song;
     noLyrics["provider"] = "local";
-    noLyrics["path"] = first;
+    noLyrics["path"] = root + "/album/ghost.wav";
     noLyrics["cover"] = "";
     noLyrics["localLyrics"] = "";
     requests.clear();
     music.player.lyrics.load(noLyrics);
     check(waitFor([&] { return music.player.lyrics.status == "empty"; }) && requests.isEmpty(),
           "local track without lyrics yields empty state without requests");
+    // === T6 歌词手动导入：导入 → 逐句 ready；映射持久化 → 重启生效；源删除 → 回退 empty。
+    const QString importedLrc = root + "/album/imported.lrc";
+    check(write(importedLrc, "[00:01.00]导入的第一句\n[00:03.00]导入的第二句\n"),
+          "create imported lyrics file");
+    auto importTarget = song;
+    importTarget["provider"] = "local";
+    importTarget["path"] = first;
+    importTarget["cover"] = "";
+    importTarget["localLyrics"] = "";
+    requests.clear();
+    music.player.lyrics.importLyricsFor(importTarget, importedLrc);
+    check(waitFor([&] { return music.player.lyrics.status == "ready"; }) && requests.isEmpty() &&
+              music.player.lyrics.document()["lines"].toArray().size() == 2,
+          "imported lyrics parse locally and become ready");
+    {
+        // 重启生效：新控制器从映射 JSON 读回导入关系（T6 验收）。
+        LyricsController fresh(&host);
+        fresh.load(importTarget);
+        check(waitFor([&] { return fresh.status == "ready"; }) &&
+                  fresh.document()["lines"].toArray().size() == 2,
+              "imported lyrics survive restart via mapping file");
+    }
+    check(QFile::remove(importedLrc), "remove imported lyrics source");
+    music.player.lyrics.load(importTarget);
+    check(waitFor([&] { return music.player.lyrics.status == "empty"; }),
+          "missing imported source falls back to empty");
+    // 清理映射文件，保证后续运行与其它检查不被导入状态污染。
+    QFile::remove(AppStorage::dataDirectory() + QStringLiteral("/local-lyric-imports.json"));
+    music.player.lyrics.load(noLyrics);
     if (QMediaDevices::defaultAudioOutput().isNull()) {
         qWarning() << "Local audio output unavailable; decoder/output check not verified";
     } else {

@@ -23,8 +23,20 @@ Item {
         nameFilters: ["音乐文件 (*.mp3 *.flac *.m4a *.mp4 *.aac *.ogg *.opus *.ape *.wav *.aiff *.aif *.wv *.wma *.mpc)"]
         onAccepted: backend.importLocal(selectedFiles)
     }
+    FileDialog {
+        id: lyricsFileDialog
+        objectName: "lyricsFileDialog"
+        parentWindow: dialogs.hostWindow
+        title: "导入歌词文件"
+        fileMode: FileDialog.OpenFile
+        nameFilters: ["歌词文件 (*.lrc *.LRC)"]
+        onAccepted: backend.importLyrics(selectedFiles)
+    }
     Connections {
         target: backend
+        function onLyricsImportRequested() {
+            lyricsFileDialog.open();
+        }
         function onLocalImportRequested(folder: bool) {
             if (folder) {
                 localFolderDialog.open();

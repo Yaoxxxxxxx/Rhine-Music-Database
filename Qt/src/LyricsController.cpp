@@ -1,5 +1,6 @@
 #include "LyricsController.h"
 #include "LocalLyrics.h"
+#include "AppStorage.h"
 #include <QJsonDocument>
 #include <QFile>
 #include <QFileInfo>
@@ -62,6 +63,7 @@ LyricsController::LyricsController(Host *host, QObject *parent) : QObject(parent
         m_globalOffsetMs = std::clamp(savedOffset, -10000., 10000.);
     }
     offsetMs = m_globalOffsetMs;
+    loadImportedLyrics();
     const auto cached = QJsonDocument::fromJson(host->preference("lyrics-cache").toUtf8()).array();
     for (const auto &value : cached) {
         const auto entry = value.toObject();
@@ -239,6 +241,46 @@ void LyricsController::selectEncoding(const QJsonObject &track, const QString &e
 
 QString LyricsController::localEncodingFor(const QJsonObject &track) const {
     return m_localEncodings.value(track["id"].toString()).toString();
+}
+
+void LyricsController::loadImportedLyrics() {
+    QFile file(AppStorage::dataDirectory() + QStringLiteral("/local-lyric-imports.json"));
+    if (file.open(QIODevice::ReadOnly)) {
+        m_importedLyrics = QJsonDocument::fromJson(file.readAll()).object();
+    }
+}
+
+void LyricsController::saveImportedLyrics() {
+    QFile file(AppStorage::dataDirectory() + QStringLiteral("/local-lyric-imports.json"));
+    if (file.open(QIODevice::WriteOnly)) {
+        file.write(QJsonDocument(m_importedLyrics).toJson(QJsonDocument::Compact));
+    }
+}
+
+// T6 手动导入：仅接受 .lrc；映射存应用数据目录 JSON（不写偏好、不复制歌词、
+// 不改写音频标签）。三层兜底失败的文件不进映射。
+void LyricsController::importLyricsFor(const QJsonObject &track, const QString &lyricsPath) {
+    if (track["provider"] != "local" || track["id"].toString().isEmpty()) {
+        return;
+    }
+    const QFileInfo lyricsInfo(lyricsPath);
+    if (!lyricsInfo.isReadable() ||
+        lyricsInfo.suffix().compare(QStringLiteral("lrc"), Qt::CaseInsensitive) != 0) {
+        return;
+    }
+    QFile lyricsFile(lyricsPath);
+    if (!lyricsFile.open(QIODevice::ReadOnly) || lyricsFile.size() > LocalLyrics::maxContentBytes) {
+        return;
+    }
+    const auto document = LocalLyrics::documentFromBytes(lyricsFile.readAll());
+    // 无时间戳的纯文本歌词无法逐句高亮，导出前请先用打轴工具标注时间。
+    if (!validDocument(document) || document["timing"].toString() == QStringLiteral("none")) {
+        return;
+    }
+    const QFileInfo audio(track["path"].toString());
+    m_importedLyrics.insert(audio.absoluteFilePath().toLower(), lyricsInfo.absoluteFilePath());
+    saveImportedLyrics();
+    load(track, true);
 }
 
 /** 切歌先清空显示，再读精确 ID；缺词时只接受同名、同歌手、同版本的录音补缺。 */
@@ -507,6 +549,20 @@ void LyricsController::loadLocal(const QJsonObject &track, const Pending &pendin
             if (!sidecar.trimmed().isEmpty()) {
                 sidecarBytes = sidecar;
                 break;
+            }
+        }
+    }
+    if (sidecarBytes.isEmpty()) {
+        // T6 手动导入：映射表按音频绝对路径（小写归一）指向外部 .lrc。
+        const auto imported =
+            m_importedLyrics.value(audio.absoluteFilePath().toLower()).toString();
+        if (!imported.isEmpty()) {
+            QFile importedFile(imported);
+            if (importedFile.open(QIODevice::ReadOnly) && importedFile.size() <= 1000000) {
+                const auto sidecar = importedFile.readAll();
+                if (!sidecar.trimmed().isEmpty()) {
+                    sidecarBytes = sidecar;
+                }
             }
         }
     }

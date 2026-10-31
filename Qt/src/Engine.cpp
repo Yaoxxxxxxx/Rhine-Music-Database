@@ -43,6 +43,7 @@ Engine::Engine(QString path, bool offline, QObject *parent, PlaybackConnection *
     app = std::make_unique<NativeApplication>(&host, &m_glyphs, &scene, content);
     connect(&app->music, &MusicLibrary::playbackInvalidated, this, &Engine::refreshPlayback);
     connect(&app->hud, &NativeHud::localImportRequested, this, &Engine::localImportRequested);
+    connect(&app->hud, &NativeHud::lyricsImportRequested, this, &Engine::lyricsImportRequested);
 #ifdef Q_OS_DARWIN
     renderConfiguration.initialize([this](const QString &key) { return host.preference(key); });
     connect(&host, &Host::preferenceChanged, this, [this](const QString &key, const QString &value) {
@@ -854,4 +855,15 @@ void Engine::importLocal(QList<QUrl> urls) {
     }
     app->music.importLocal(paths);
     wake();
+}
+
+// T6 歌词手动导入：把选中的 .lrc 映射到当前曲目（映射持久化在 LyricsController）。
+void Engine::importLyrics(QList<QUrl> urls) {
+    for (const auto &url : urls) {
+        if (url.isLocalFile()) {
+            app->music.player.lyrics.importLyricsFor(app->music.player.current, url.toLocalFile());
+            wake();
+            return;
+        }
+    }
 }
