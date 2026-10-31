@@ -1,5 +1,6 @@
 #include "MusicLibrary.h"
 #include "MusicData.h"
+#include <QFileInfo>
 #include <QRegularExpression>
 #include <algorithm>
 #include <cmath>
@@ -372,6 +373,34 @@ void MusicLibrary::leaveDirectory(bool restore) {
 void MusicLibrary::followPlayback(QJsonObject value) {
     if (current.value("key") == value["key"] && current.value("id") == value["id"]) {
         return;
+    }
+    // T-017 验收反馈：本地播放跟随切到曲目的真实文件夹（原逻辑进合成「播放队列」
+    // 文件夹，与文件夹浏览语义不同步）。走手动开文件夹的同一路径并选中播放曲目；
+    // 扫描中或找不到所属文件夹时回退原队列逻辑。
+    if (isLocal() && value["provider"].toString() == "local" && local && !local->busy) {
+        const auto folderId = QFileInfo(value["path"].toString()).absolutePath();
+        const auto folders = local->collections("folder");
+        for (const auto &entry : folders) {
+            const auto item = entry.toObject();
+            if (item["id"].toString() != folderId) {
+                continue;
+            }
+            const auto physical = selectedPhysical >= 0
+                                      ? selectedPhysical
+                                      : frame["selected"].toInt(physicalSlots[selectedLane].value(0, -1));
+            enterDirectory(item);
+            const auto index = MusicData::indexOfId(directory->orderedSongs(), value["id"].toString());
+            if (index < 0) {
+                return;
+            }
+            const auto cell = (index + directory->anchor) % 40;
+            const auto target = physicalSlots[cell / 8].value(cell % 8, -1);
+            selectDirectory(index, "detail", target == physical ? "row" : "", target == physical ? 8 : 1);
+            if (!frame.isEmpty()) {
+                frame["mode"] = "detail";
+            }
+            return;
+        }
     }
     const auto previous = current;
     const auto physical = selectedPhysical >= 0
