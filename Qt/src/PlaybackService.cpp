@@ -42,9 +42,11 @@ PlaybackService::PlaybackService(QString root, QString guiExecutable, bool offli
     connect(&m_interfaceSession, &InterfaceSession::suspensionRequested, this,
             [this] { send(m_gui, {{"event", "suspend"}}); });
     connect(&m_interfaceSession, &InterfaceSession::stateChanged, this, &PlaybackService::publish);
-    auto provider = m_host.preference("provider");
-    if (!QStringList{"netease", "qq", "kugou", "local"}.contains(provider)) {
-        provider = "netease";
+    // 本地版：后台服务与 GUI 一致，来源恒为 local；存量在线偏好写回 local。
+    const auto provider = QStringLiteral("local");
+    const auto storedProvider = m_host.preference("provider");
+    if (!storedProvider.isEmpty() && storedProvider != "local") {
+        m_host.setPreference("provider", provider);
     }
     m_api.provider = provider;
     m_host.setProvider(provider);

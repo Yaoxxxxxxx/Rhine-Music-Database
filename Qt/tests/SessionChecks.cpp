@@ -157,7 +157,10 @@ bool runNativeSessionChecks(const QString &root, const QString &audioURL) {
     ok &= check(!restored.restoreSessionState(invalid), "provider isolation");
 
     // 用实际 QMediaPlayer 验证暂停恢复的底层位置，以及播放恢复后进度继续增长。
-    auto track = MusicData::item("song", "resume", "恢复播放");
+    // 本地版 provider 恒为 local：恢复会话改用本地曲目（本地文件直读，不取播放地址），
+    // 与上游“netease 曲目走在线地址”形态对应。
+    auto track = MusicData::item("song", "resume", "恢复播放", QString(), "local");
+    track["url"] = audioURL;
     restoredHost.fixture = [&](QString route, QJsonObject) {
         QJsonValue value;
         if (route.endsWith("/playback")) {
@@ -212,7 +215,8 @@ bool runNativeSessionChecks(const QString &root, const QString &audioURL) {
         if (!audioOutputPresent()) {
             // 设备一直在时要求播放真正开始并越过恢复点；恢复途中设备消失则只
             // 校验播放意图保住了——没有输出时位置推进无法验收。
-            return !restored.music.player.loading && state["requested"].toBool() &&
+            // 本地版走本地文件直读，不再有“取地址”动作，意图以加载完成为准。
+            return !restored.music.player.loading &&
                    (!hasOutput || state["position"].toLongLong() == 2500);
         }
         return state["playing"].toBool() && state["position"].toLongLong() > 2800;

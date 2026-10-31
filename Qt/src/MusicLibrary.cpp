@@ -16,12 +16,12 @@ int wrap(int value, int count) {
 MusicLibrary::MusicLibrary(Host *host, const QJsonObject &content, QObject *parent)
     : QObject(parent), host(host), api(host), player(host, &api), m_identityApi(host) {
     kugouEdition = host->preference("kugou-edition") == "lite" ? "lite" : "standard";
-    provider = host->preference("provider");
-    if (!QStringList{"netease", "qq", "kugou", "local"}.contains(provider)) {
-        provider = "netease";
-    }
-    if (provider == "local" && !PlatformFeatures::LocalMusic) {
-        provider = "netease";
+    // 本地版：来源恒为 local；存量 netease/qq/kugou 偏好写回 local。
+    // 空值（全新安装）不写，保持“首次启动”判定依赖的 provider 偏好为空。
+    const auto storedProvider = host->preference("provider");
+    provider = "local";
+    if (!storedProvider.isEmpty() && storedProvider != "local") {
+        host->setPreference("provider", provider);
     }
     api.provider = provider;
     host->setProvider(provider);

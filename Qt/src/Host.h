@@ -135,7 +135,7 @@ class Host : public QObject {
     qint64 lastStart = 0;
     QHash<QString, qint64> blockedUntil;
     QHash<QString, QJsonObject> privateCredentials;
-    QString provider = "netease";
+    QString provider = "local";
     QString kugouEdition = "standard";
     QString active;
     bool stopped = false;

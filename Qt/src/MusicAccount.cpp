@@ -182,16 +182,14 @@ void MusicLibrary::restoreAccount(Completion done) {
 
 /** 换来源先隔离旧请求并停止播放，再恢复目标来源的独立凭据和显示状态。 */
 void MusicLibrary::switchProvider(QString source, QString edition, Completion done) {
-    if (source == "local" && !PlatformFeatures::LocalMusic) {
+    // 本地版只接受 local；在线来源一律拒绝。
+    if (source != "local" || !PlatformFeatures::LocalMusic) {
         if (done) {
             done(false);
         }
         return;
     }
-    const auto editionChanged =
-        source == "kugou" && QStringList{"standard", "lite"}.contains(edition) && edition != kugouEdition;
-    if (!QStringList{"netease", "qq", "kugou", "local"}.contains(source) ||
-        (source == provider && !editionChanged)) {
+    if (source == provider) {
         if (done) {
             done(true);
         }
@@ -209,12 +207,6 @@ void MusicLibrary::switchProvider(QString source, QString edition, Completion do
     local->cancel();
     emit musicClearRequested();
     provider = source;
-    if (editionChanged) {
-        kugouEdition = edition;
-        host->setKugouEdition(edition);
-        host->setPreference("kugou-edition", edition);
-        identityNames["kugou"] = host->preference("welcome-name-" + accountKey());
-    }
     host->setProvider(source);
     host->setPreference("provider", source);
     api.provider = source;

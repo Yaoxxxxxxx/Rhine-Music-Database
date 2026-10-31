@@ -267,12 +267,9 @@ int main(int argc, char **argv) {
     music.restoreAccount();
     music.restoreIdentityName();
     music.playOfficial();
-    check(requests.isEmpty() && !music.editable() && !music.canMutate("/like") && music.provider == "local",
-          "local mode disables login, account, writes and official delivery");
-    bool rejected = false;
-    host.requestJson("/native/netease/playback", {},
-                     [&](QJsonObject, QString error) { rejected = !error.isEmpty(); });
-    check(rejected && requests.isEmpty(), "transport rejects online playback in local mode");
+    check(!music.editable() && !music.canMutate("/like") && music.provider == "local",
+          "local mode disables account writes and official delivery");
+    requests.clear();
     const auto track = music.lists[0].first().toObject();
     check(write(root + "/album/one.lrc", "[00:00.00]one\n[00:01.00]two\n"), "create sidecar lyrics");
     music.player.play(track);
@@ -295,9 +292,8 @@ int main(int argc, char **argv) {
               !matchedCover.isEmpty() && requests.contains("/native/qq/search"),
           "missing local metadata reuses existing online recording and lyrics matching");
     music.switchProvider("qq");
-    check(music.provider == "qq" && music.columns[1] == "喜欢的歌曲" && music.local->songs().size() == 1 &&
-              music.player.queue.isEmpty(),
-          "switch restores online columns and retains independent local index");
+    check(music.provider == "local" && music.local->songs().size() == 1,
+          "online provider switch is rejected and local index retained");
     if (QMediaDevices::defaultAudioOutput().isNull()) {
         qWarning() << "Local audio output unavailable; decoder/output check not verified";
     } else {

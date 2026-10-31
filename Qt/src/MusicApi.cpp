@@ -56,24 +56,12 @@ QJsonObject MusicApi::safeFailure(const QJsonObject &body, bool includePrevious)
 
 /** SDK 数据适配运行在 Node 内；原生业务只接收 Qt JSON 值，不创建脚本值或 Promise。 */
 void MusicApi::call(QString operation, QJsonArray arguments, Reply callback, Valid valid) {
-    if (provider == "local") {
-        if (valid()) {
-            callback({{}, QStringLiteral("本地模式不提供在线平台操作"), {}});
-        }
-        return;
-    }
     send("/native/" + provider + "/" + operation, {{"args", arguments}}, true, std::move(callback),
          std::move(valid), {200});
 }
 
 void MusicApi::request(QString route, QJsonObject parameters, Reply callback, Valid valid,
                        QSet<int> allowed) {
-    if (provider == "local") {
-        if (valid()) {
-            callback({{}, QStringLiteral("本地模式不提供在线平台操作"), {}});
-        }
-        return;
-    }
     if (provider != "netease") {
         route = "/" + provider + route;
     }

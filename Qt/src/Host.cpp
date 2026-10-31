@@ -205,12 +205,6 @@ void Host::requestJson(QString route, QJsonObject values, JsonReply callback) {
     if (stopped) {
         return;
     }
-    if (provider == "local" && route != "/local/lyrics" &&
-        !(route.startsWith("/native/") &&
-          QStringList{"search", "lyrics", "songs"}.contains(route.section('/', 3, 3)))) {
-        callback({}, QStringLiteral("本地模式已禁用在线平台操作"));
-        return;
-    }
     const auto operation = route.section('/', 3, 3);
     const bool playbackRequest =
         (route.startsWith("/native/") && (operation == "playback" || operation == "preview")) ||
@@ -552,7 +546,7 @@ bool Host::hasCredential(QString value) const {
  * 切换音乐来源，保持各来源的凭据与缓存隔离。
  */
 void Host::setProvider(QString value) {
-    if (value != "qq" && value != "netease" && value != "kugou" && value != "local") {
+    if (value != "local") {
         return;
     }
     if (remote) {
