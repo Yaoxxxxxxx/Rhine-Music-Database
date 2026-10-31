@@ -413,7 +413,12 @@ QJsonArray LocalMusicLibrary::collections(QString kind) const {
                 continue;
             }
         } else {
-            id = song["artists"].toArray().first().toObject()["id"].toString();
+            // 歌手标签可能为空（纯分隔符等无法切出非空段），先判空再取首元素。
+            const auto artists = song["artists"].toArray();
+            if (artists.isEmpty()) {
+                continue;
+            }
+            id = artists.first().toObject()["id"].toString();
             title = song["artist"].toString();
         }
         auto value = values.value(id, QJsonObject{{"provider", "local"},
@@ -442,7 +447,9 @@ QJsonArray LocalMusicLibrary::tracks(const QJsonObject &collection) const {
         const bool folder =
             kind == "folder" && (QFileInfo(path).absolutePath() == id || path.startsWith(id + '/'));
         const bool album = kind == "album" && song["albumID"] == id;
-        const bool artist = kind == "artist" && song["artists"].toArray().first().toObject()["id"] == id;
+        const auto songArtists = song["artists"].toArray();
+        const bool artist =
+            kind == "artist" && !songArtists.isEmpty() && songArtists.first().toObject()["id"] == id;
         if (folder || album || artist) {
             result.append(song);
         }

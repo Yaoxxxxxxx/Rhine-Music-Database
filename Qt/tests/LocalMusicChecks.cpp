@@ -247,15 +247,10 @@ int main(int argc, char **argv) {
     MusicLibrary music(&host, QJsonDocument::fromJson(sceneContent.readAll()).object());
     QStringList requests;
     bool missingFirstCover = false;
-    host.fixture = [&](QString route, QJsonObject values) {
+    host.fixture = [&](QString route, QJsonObject) {
         requests.append(route);
-        if (route == "/local/lyrics") {
-            check(values.contains("contentBase64") &&
-                      QByteArray::fromBase64(values["contentBase64"].toString().toLatin1())
-                          .contains("[00:00.00]"),
-                  "sidecar lyrics retain original bytes until bridge decoding");
-            return QJsonObject{{"body", QJsonObject{{"code", 200}, {"document", document("local")}}}};
-        }
+        // T5b 起本地歌词不再经桥（/local/lyrics 路由已废弃）；若将来有代码重新发出，
+        // 下文 "no bridge round-trip" 断言会拦截，这里不再提供桥的假响应。
         const auto operation = route.section('/', 3, 3);
         QJsonValue response;
         if (operation == "search") {

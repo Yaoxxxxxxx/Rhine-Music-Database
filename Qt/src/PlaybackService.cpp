@@ -410,6 +410,9 @@ bool PlaybackService::lyricsCommand(const QString &method, const QJsonObject &ar
         lyrics.applyGlobalOffset();
     } else if (method == "clear") {
         lyrics.clear();
+    } else if (method == "reload-imports") {
+        // GUI 侧刚写完歌词导入映射：磁盘重载，让服务立刻看到新映射（T-019 体检 P3）。
+        lyrics.loadImportedLyrics();
     } else {
         return false;
     }

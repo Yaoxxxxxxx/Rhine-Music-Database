@@ -122,7 +122,6 @@ bool decodeLegacy(const QString &encoding, const QByteArray &bytes, QString &out
 #ifdef Q_OS_WIN
     const UINT codePage = encoding == "gbk" ? 936 : encoding == "big5" ? 950 : 932;
     if (!decodeWindowsCodePage(codePage, bytes, text)) {
-        std::fprintf(stderr, "DBG legacy decode failed: cp=%u\n", codePage);
         return false;
     }
 #else
@@ -132,7 +131,6 @@ bool decodeLegacy(const QString &encoding, const QByteArray &bytes, QString &out
     }
 #endif
     if (!plausible(text)) {
-        std::fprintf(stderr, "DBG legacy implausible: len=%d\n", int(text.size()));
         return false;
     }
     out = text;

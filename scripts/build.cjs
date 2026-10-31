@@ -36,14 +36,6 @@ function run(command, args = [], env = {}) {
     }
 }
 
-/** 读取实际执行的 npm 版本，用于判断新版本才有的安全开关。 */
-function npmVersion() {
-    const cli = process.env.npm_execpath;
-    const result = spawnSync(cli ? process.execPath : 'npm', cli ? [cli, '--version'] : ['--version'], {
-        encoding: 'utf8',
-    });
-    return result.status === 0 ? result.stdout.trim() : '';
-}
 
 /**
  * npm 11.6 起默认拒绝安装 remote 类型的依赖，而锁定的酷狗 SDK 正是 codeload tarball。
@@ -765,6 +757,37 @@ function deployApp(qt, config, existingBundle = '') {
         fs.cpSync(qtLicenses, path.join(resources, 'Qt-Licenses'), {
             recursive: true,
         });
+    }
+    // K-032：全量部署轮换把旧包整目录改名 .previous-<时间戳>，而 Windows 绿色版的
+    // 用户数据（settings.ini、local-library/、playback-session.json、歌词导入映射）全部
+    // 存于应用目录 data/ 内——不迁回即等于每次部署清空曲库与播放会话。
+    if (!existingBundle && win) {
+        const parent = path.dirname(app);
+        const base = path.basename(app);
+        const previous = fs
+            .readdirSync(parent)
+            .filter((n) => n.startsWith(base + '.previous-') && /^\d+$/.test(n.slice(base.length + 10)))
+            .sort((first, second) =>
+                Number(second.slice(base.length + 10)) - Number(first.slice(base.length + 10)))[0];
+        if (previous) {
+            const prevData = path.join(parent, previous, 'data');
+            if (fs.existsSync(prevData)) {
+                const nextData = path.join(app, 'data');
+                fs.mkdirSync(nextData, { recursive: true });
+                for (const entry of fs.readdirSync(prevData, { withFileTypes: true })) {
+                    // cache/temp 是可再生产物，lock 是旧进程句柄残留，一律不迁。
+                    if (entry.name === 'cache' || entry.name === 'temp' || entry.name.endsWith('.lock')) {
+                        continue;
+                    }
+                    fs.cpSync(path.join(prevData, entry.name), path.join(nextData, entry.name), {
+                        recursive: true,
+                        force: false,
+                        errorOnExist: true,
+                    });
+                }
+                console.log('[deploy] 已从 ' + previous + ' 迁回 data/ 用户数据（K-032）');
+            }
+        }
     }
     if (mac) {
         run('codesign', ['--force', '--deep', '--sign', '-', app]);

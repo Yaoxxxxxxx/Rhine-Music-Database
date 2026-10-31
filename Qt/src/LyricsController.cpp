@@ -224,6 +224,9 @@ void LyricsController::importLyricsFor(const QJsonObject &track, const QString &
     const QFileInfo audio(track["path"].toString());
     m_importedLyrics.insert(audio.absoluteFilePath().toLower(), lyricsInfo.absoluteFilePath());
     saveImportedLyrics();
+    // 服务端的导入映射只在它构造时读一次；不通知重载的话，性能模式/正式版下
+    // 要重启应用才能看到刚导入的歌词（T-019 体检 P3）。
+    remoteCommand("reload-imports", {});
     load(track, true);
 }
 
@@ -286,6 +289,12 @@ void LyricsController::load(const QJsonObject &track, bool retry) {
 
 void LyricsController::supplement(const Pending &pending) {
     const auto source = pending->track["provider"].toString("netease");
+    // 纯本地版：本地曲目缺词时没有任何可用的在线补配来源（MusicBridge 已随 T8 移除），
+    // 直接收尾显示“暂无歌词”，避免尝试启动桥而报“音乐服务组件缺失”（T-019 体检 P4）。
+    if (source == QStringLiteral("local")) {
+        finish(pending);
+        return;
+    }
     while (pending->provider < PROVIDERS.size() &&
            (PROVIDERS[pending->provider] == source ||
             (!pending->lyricSource.isEmpty() && PROVIDERS[pending->provider] != pending->lyricSource))) {
