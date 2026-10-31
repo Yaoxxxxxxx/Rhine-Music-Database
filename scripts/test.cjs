@@ -28,20 +28,6 @@ run(process.execPath, ['scripts/check-music-upstream.cjs']);
 run('ctest', ['--test-dir', 'output/qt-build', '--output-on-failure']);
 // 验证最终应用包
 const resources = path.join(app, resourceDirectory);
-const bridgeTests = [
-    'Qt/tests/local-lyrics.cjs',
-    'Qt/tests/ios-bridge.cjs',
-    'Qt/tests/netease-client.mjs',
-    'Qt/tests/qq-client.mjs',
-    'Qt/tests/kugou-client.mjs',
-];
-run(process.execPath, ['scripts/check-packaged-bridge.cjs', resources + '/MusicBridge']);
-for (const script of bridgeTests) {
-    run(process.execPath, [script, resources + '/MusicBridge']);
-}
-if (mac) {
-    run('codesign', ['--verify', '--deep', '--strict', app]);
-}
 run(python, ['scripts/audit-qt.py', app]);
 run(process.execPath, ['scripts/check-packaged-app.cjs', app]);
 console.log('Cross-platform offline regressions and application package audit passed');

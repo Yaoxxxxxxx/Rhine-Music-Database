@@ -15,7 +15,6 @@ if (!win && !mac && !linux) {
     throw Error('Supported platforms: macOS, Linux and Windows');
 }
 const python = process.env.PYTHON || (win ? 'python' : 'python3');
-const nodeName = win ? 'node.exe' : 'node';
 /**
  * 串行执行构建或部署命令，失败立即终止。
  * 命令和参数分开传递，不经过 Shell 解释。
@@ -50,26 +49,8 @@ function npmVersion() {
  * npm 11.6 起默认拒绝安装 remote 类型的依赖，而锁定的酷狗 SDK 正是 codeload tarball。
  * 只对声明在根 package.json 的远程来源放行，旧版 npm 不传该参数。
  */
-function npmRemoteArgs() {
-    const [major, minor] = npmVersion().split('.').map(Number);
-    return major > 11 || (major === 11 && minor >= 6) ? ['--allow-remote=root'] : [];
-}
-
-function npmCi(folder) {
-    run(process.execPath, [
-        process.env.npm_execpath,
-        'ci',
-        '--prefix',
-        folder,
-        '--omit=dev',
-        '--ignore-scripts',
-        '--no-audit',
-        '--no-fund',
-        ...npmRemoteArgs(),
-    ]);
-}
 /**
- * 准备字体、模型、锁定桥接依赖和运行时资源；保持原有导出与检查顺序。
+ * 准备字体、模型与运行时资源；桥接不再打包（T8），保持原有导出与检查顺序。
  */
 function prepareResources() {
     fs.mkdirSync('output', {
@@ -85,103 +66,8 @@ function prepareResources() {
     fs.cpSync('Assets/quality', 'output/resources/quality', { recursive: true });
 
     run(process.execPath, ['scripts/check-music-upstream.cjs']);
-    const bridge = 'output/resources/MusicBridge';
-    fs.mkdirSync(bridge, {
-        recursive: true,
-    });
-    // 只保留依赖缓存，清除已删除的旧源码和资源。
-    for (const name of fs.readdirSync(bridge)) {
-        if (name !== 'node_modules') {
-            fs.rmSync(path.join(bridge, name), { recursive: true, force: true });
-        }
-    }
-    for (const file of [
-        'worker.cjs',
-        'ios-runtime.cjs',
-        'ios-web-apis.cjs',
-        'ios-system-trust.cjs',
-        'qq.cjs',
-        'kugou.cjs',
-        'lyrics-format.cjs',
-        'lyrics-text.cjs',
-        'lyrics-source.json',
-        'LyricsKit-LICENSE',
-        'package.json',
-        'package-lock.json',
-    ]) {
-        fs.copyFileSync(path.join('MusicBridge', file), path.join(bridge, file));
-    }
-    fs.cpSync('MusicBridge/upstream', path.join(bridge, 'upstream'), {
-        recursive: true,
-    });
-    fs.cpSync('MusicBridge/client', path.join(bridge, 'client'), {
-        recursive: true,
-    });
-    // package lock 变更时重新安装依赖，避免旧版本残留
-    const dependencyHash = createHash('sha256')
-        .update(fs.readFileSync(path.join(bridge, 'package.json')))
-        .update(fs.readFileSync(path.join(bridge, 'package-lock.json')))
-        .digest('hex');
-    const stamp = path.join(bridge, 'node_modules', '.rhine-lock.sha256');
-    const installedHash = fs.existsSync(stamp) ? fs.readFileSync(stamp, 'utf8') : '';
-    if (installedHash !== dependencyHash) {
-        npmCi(bridge);
-        fs.writeFileSync(stamp, dependencyHash);
-    }
-    const binary =
-        process.env.RHINE_NODE_BINARY ||
-        (mac && process.arch === 'arm64' ? path.resolve('vendor/node-arm64/node') : process.execPath);
-    // 官方独立分发包把 LICENSE 放在 bin 的上一级；两种解压布局都要能识别。
-    const license =
-        process.env.RHINE_NODE_LICENSE ||
-        [path.join(path.dirname(binary), 'LICENSE'), path.resolve(path.dirname(binary), '../LICENSE')].find(
-            (candidate) => fs.existsSync(candidate),
-        );
-    if (!fs.existsSync(binary) || !license) {
-        throw Error(
-            'Provide RHINE_NODE_BINARY and its matching RHINE_NODE_LICENSE (official standalone distribution)',
-        );
-    }
-    if (mac) {
-        const deps = spawnSync('otool', ['-L', binary], {
-            encoding: 'utf8',
-        });
-        if (
-            deps.status !== 0 ||
-            /\/opt\/|\/Users\/|@rpath/.test(deps.stdout.split('\n').slice(1).join('\n'))
-        ) {
-            throw Error('Node must be an official standalone distribution');
-        }
-    }
-    if (linux) {
-        // 发行版自带的 node 链接了系统 ICU 与 absl，只有官方静态包能随 AppImage 分发。
-        const deps = spawnSync('ldd', [binary], {
-            encoding: 'utf8',
-        });
-        if (deps.status !== 0) {
-            throw Error('Node must be an official standalone distribution');
-        }
-        // 官方静态包只依赖 glibc 与 GCC 运行库；出现其他动态依赖说明用的是发行版构建。
-        // 部分官方构建会额外链接 libatomic（GCC 运行时自带的原子操作库）。
-        const exposed = deps.stdout
-            .split('\n')
-            .filter((line) => line.includes('=>'))
-            .map((line) => path.basename(line.split('=>')[0].trim()))
-            .filter(
-                (name) =>
-                    !/^(?:ld-linux[\w.-]*|libc|libm|libmvec|libdl|libpthread|librt|libgcc_s|libstdc\+\+|libatomic)\.so/.test(
-                        name,
-                    ),
-            );
-        if (exposed.length) {
-            throw Error(`Node must be an official standalone distribution: ${exposed.join(', ')}`);
-        }
-    }
-    fs.copyFileSync(binary, path.join(bridge, nodeName));
-    fs.copyFileSync(license, path.join(bridge, 'NODE-LICENSE'));
-    fs.chmodSync(path.join(bridge, nodeName), 0o755);
-    // 桥接在部署前打成单文件
-    run(process.execPath, ['scripts/bundle-bridge.cjs']);
+    // 桥接不再打包（T8）：清掉历史构建残留在资源目录里的桥内容。
+    fs.rmSync('output/resources/MusicBridge', { recursive: true, force: true });
     // 同步清理旧暂存文件，开发运行与发布包使用相同的纯原生资源。
     for (const name of [
         'room-pmrem.bin',
@@ -881,7 +767,6 @@ function deployApp(qt, config, existingBundle = '') {
         });
     }
     if (mac) {
-        run('codesign', ['--force', '--sign', '-', path.join(resources, 'MusicBridge/node')]);
         run('codesign', ['--force', '--deep', '--sign', '-', app]);
     }
     if (linux) {

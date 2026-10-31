@@ -66,9 +66,6 @@ for name in (
 ):
     assert not (resources / name).exists(), "Retired script or geometry copy entered package: " + name
 # 桥接单文件
-assert (resources / "MusicBridge" / "worker.cjs").is_file(), "Missing bridge bundle"
-assert (resources / "MusicBridge" / "xhr-sync-worker.js").is_file(), "Missing jsdom sync XHR worker"
-assert not (resources / "MusicBridge" / "node_modules").exists(), "node_modules must be bundled"
 fixture = json.loads((resources / "scene-fixture.json").read_text(encoding="utf-8"))
 assert (
     len(fixture["frame"]["view"]) == 16 and len(fixture["frame"]["projection"]) == 16 and fixture["rays"]
@@ -187,7 +184,6 @@ elif linux:
     assert (app / "usr/plugins/multimedia/libffmpegmediaplugin.so").is_file(), "Missing FFmpeg audio backend"
     assert (app / "usr/plugins/tls/libqopensslbackend.so").is_file(), "Missing TLS backend"
     assert (app / "usr/qml/QtQuick").is_dir(), "Missing QtQuick QML module"
-    assert (resources / "MusicBridge/node").is_file(), "Missing bundled Node runtime"
     conf = (app / "usr/bin/qt.conf").read_text(encoding="utf-8")
     assert "/Users/" not in conf and "/opt/" not in conf, "Local QML search path"
     assert (app / "AppRun").is_file() and (app / "rhine-music-database.desktop").is_file()
@@ -216,10 +212,9 @@ else:
     assert (app / "platforms/qoffscreen.dll").is_file() or (
         app / "platforms/qoffscreend.dll"
     ).is_file(), "Missing offscreen test platform plugin"
-    assert (resources / "MusicBridge/node.exe").is_file()
     assert (app / "qml").is_dir()
     assert not list(app.rglob("*.swift"))
     assert not (app / "sqldrivers").exists()
-result = {"qt_deployed": True, "swift_runtime_required": False, "locked_music_bridge": True}
+result = {"qt_deployed": True, "swift_runtime_required": False}
 pathlib.Path("output/qt-package-audit.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
 print(json.dumps(result))
