@@ -1,5 +1,6 @@
 #pragma once
 #include <QByteArray>
+#include <QJsonObject>
 #include <QString>
 
 namespace LocalLyrics {
@@ -20,4 +21,13 @@ struct DecodeResult {
  * 对应上游 MusicBridge/lyrics-text.cjs 的证据判定层；chardet 全量探测不复刻（决策四）。
  */
 DecodeResult decode(const QByteArray &bytes, const QString &hint = {});
+
+/**
+ * LRC 解析与归一化（T5b）：移植 MusicBridge/lyrics-format.cjs 的 local 分支，
+ * 产出与在线歌词同构的 document（version/source/timing/offsetMs/lines/plainText，
+ * 另含 encoding）。支持多时间标签、【翻译】后缀、角色署名过滤、增强 LRC 词时间
+ * （行内 <mm:ss.xx>，timing=word）。解析失败返回空对象（不含 version）。
+ */
+QJsonObject normalize(const QString &text, const QString &encoding = {});
+QJsonObject documentFromBytes(const QByteArray &bytes, const QString &hint = {});
 }

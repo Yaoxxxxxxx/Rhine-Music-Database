@@ -1,4 +1,5 @@
 #include "LyricsController.h"
+#include "LocalLyrics.h"
 #include <QJsonDocument>
 #include <QFile>
 #include <QFileInfo>
@@ -221,6 +222,25 @@ void LyricsController::selectLocalSource(const QJsonObject &track, const QString
     load(track, true);
 }
 
+void LyricsController::selectEncoding(const QJsonObject &track, const QString &encoding) {
+    if (remoteCommand("encoding", {{"track", track}, {"encoding", encoding}})) {
+        return;
+    }
+    if (track["provider"] != "local" || track["id"].toString().isEmpty() ||
+        !QStringList{"utf-8", "gbk", "big5", "shift-jis"}.contains(encoding)) {
+        return;
+    }
+    if (m_localEncodings.size() >= 200 && !m_localEncodings.contains(track["id"].toString())) {
+        m_localEncodings = {};
+    }
+    m_localEncodings[track["id"].toString()] = encoding;
+    load(track, true);
+}
+
+QString LyricsController::localEncodingFor(const QJsonObject &track) const {
+    return m_localEncodings.value(track["id"].toString()).toString();
+}
+
 /** 切歌先清空显示，再读精确 ID；缺词时只接受同名、同歌手、同版本的录音补缺。 */
 void LyricsController::load(const QJsonObject &track, bool retry) {
     if (remoteCommand("load", {{"track", track}, {"retry", retry}})) {
@@ -235,7 +255,11 @@ void LyricsController::load(const QJsonObject &track, bool retry) {
     currentKey = key;
     positionMs = position;
     if (track["provider"] == "local") {
-        localSource = m_localSources.value(track["id"].toString()).toString("auto");
+        // 本地版：缺省不再在线匹配；存量 netease/qq/kugou 选择一律按 local 处理。
+        const auto stored =
+            m_localSources.value(track["id"].toString()).toString(QStringLiteral("local"));
+        localSource = QStringList{"auto", "local"}.contains(stored) ? stored
+                                                                    : QStringLiteral("local");
         auto pending = std::make_shared<Load>();
         pending->generation = m_generation;
         pending->track = track;
@@ -516,33 +540,27 @@ void LyricsController::loadLocal(const QJsonObject &track, const Pending &pendin
     }
     status = "loading";
     emit changed();
-    // 原始字节交给桥接统一识别编码；内嵌歌词已由标签库转换为 Unicode，作为回退保留。
-    QJsonObject parameters{{"content", content}};
-    if (!sidecarBytes.isEmpty()) {
-        parameters["contentBase64"] = QString::fromLatin1(sidecarBytes.toBase64());
+    // 原始字节交给本地 C++ 解码与解析（T5：不再经桥）；编码可由歌词页人工指定重解。
+    const auto localEncoding = m_localEncodings.value(track["id"].toString()).toString();
+    const auto document = sidecarBytes.isEmpty()
+                              ? LocalLyrics::normalize(content, localEncoding)
+                              : LocalLyrics::documentFromBytes(sidecarBytes, localEncoding);
+    if (validDocument(document) &&
+        (!document["lines"].toArray().isEmpty() || !document["plainText"].toString().isEmpty())) {
+        accept(document, pending->track);
+        pending->needsLyrics = false;
     }
-    m_host->requestJson(
-        "/local/lyrics", parameters,
-        [this, pending, alive = valid(pending)](QJsonObject response, QString error) {
-            if (!alive()) {
-                return;
-            }
-            const auto document = response["body"].toObject()["document"].toObject();
-            if (error.isEmpty() && validDocument(document) &&
-                (!document["lines"].toArray().isEmpty() || !document["plainText"].toString().isEmpty())) {
-                accept(document, pending->track);
-                pending->needsLyrics = false;
-            }
-            if (pending->needsLyrics && localSource == "local") {
-                pending->needsLyrics = false;
-                status = "empty";
-                message = QStringLiteral("本地歌词无法读取，可选择其他来源");
-                emit changed();
-            }
-            if (pending->needsLyrics || pending->needsCover) {
-                supplement(pending);
-            }
-        });
+    if (pending->needsLyrics && localSource == "local") {
+        pending->needsLyrics = false;
+        status = "empty";
+        message = localEncoding.isEmpty()
+                      ? QStringLiteral("没有可读取的本地歌词")
+                      : QStringLiteral("歌词解码失败，请另存为 UTF-8 后重试");
+        emit changed();
+    }
+    if (pending->needsLyrics || pending->needsCover) {
+        supplement(pending);
+    }
 }
 
 bool LyricsController::remoteCommand(const QString &method, QJsonObject arguments) {

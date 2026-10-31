@@ -227,7 +227,7 @@ if(NOT IOS)
         RHINE_PLAYBACK_SOURCES
         INCLUDE
         REGEX
-        "/(AppStorage|AudioPlayer|PlaybackDiagnostics|PlaybackConnection|Host|MusicApi|MusicPlayer|LyricsController|Platform)\\.(cpp|h)$|/qrcodegen\\.cpp$"
+        "/(AppStorage|AudioPlayer|LocalLyrics|PlaybackDiagnostics|PlaybackConnection|Host|MusicApi|MusicPlayer|LyricsController|Platform)\\.(cpp|h)$|/qrcodegen\\.cpp$"
     )
     list(REMOVE_ITEM RHINE_CORE_SOURCES ${RHINE_PLAYBACK_SOURCES})
     add_library(RhinePlaybackCore STATIC ${RHINE_PLAYBACK_SOURCES})
@@ -243,6 +243,12 @@ if(NOT IOS)
         RhinePlaybackCore
         PUBLIC Qt6::Core Qt6::Gui Qt6::Network Qt6::Concurrent Qt6::Multimedia
         PRIVATE Qt6::MultimediaPrivate)
+    if(NOT WIN32)
+        find_library(RHINE_ICONV_LIBRARY_CORE iconv)
+        if(RHINE_ICONV_LIBRARY_CORE)
+            target_link_libraries(RhinePlaybackCore PUBLIC ${RHINE_ICONV_LIBRARY_CORE})
+        endif()
+    endif()
     if(MSVC)
         target_compile_options(RhinePlaybackCore PRIVATE /utf-8)
     endif()

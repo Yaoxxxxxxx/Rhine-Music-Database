@@ -11,7 +11,9 @@ class LyricsController : public QObject {
     void load(const QJsonObject &track, bool retry = false);
     void matchCover(const QJsonObject &track);
     void selectLocalSource(const QJsonObject &track, const QString &source);
-    QString localSource = "auto";
+    void selectEncoding(const QJsonObject &track, const QString &encoding);
+    QString localEncodingFor(const QJsonObject &track) const;
+    QString localSource = "local";
     void sync(double positionMs);
     void adjustOffset(double deltaMs);
     void resetOffset();
@@ -64,6 +66,7 @@ class LyricsController : public QObject {
     QVector<double> m_starts;
     QJsonArray m_cache;
     QJsonObject m_localSources;
+    QJsonObject m_localEncodings;
     bool remoteCommand(const QString &method, QJsonObject arguments = {});
     MusicApi &api(const QString &provider);
     MusicApi::Valid valid(const Pending &pending);

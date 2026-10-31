@@ -253,4 +253,236 @@ DecodeResult decode(const QByteArray &bytes, const QString &hint) {
     }
     return result;
 }
+namespace {
+QString cleanText(const QString &value) {
+    auto text = value;
+    text.replace(QStringLiteral("&lt;"), QLatin1String("<"));
+    text.replace(QStringLiteral("&gt;"), QLatin1String(">"));
+    text.replace(QStringLiteral("&quot;"), QLatin1String("\""));
+    text.replace(QStringLiteral("&apos;"), QLatin1String("'"));
+    static const QRegularExpression numericEntity(
+        QStringLiteral("&#(x[0-9a-fA-F]+|\\d+);"));
+    qsizetype at = 0;
+    while (true) {
+        const auto match = numericEntity.match(text, at);
+        if (!match.hasMatch()) {
+            break;
+        }
+        const auto code = match.captured(1);
+        const bool hex = code.at(0).toLower() == u'x';
+        bool valid = false;
+        const auto point =
+            hex ? code.mid(1).toULongLong(&valid, 16) : code.toULongLong(&valid, 10);
+        QString replacement = match.captured(0);
+        if (valid && point <= 0x10FFFF) {
+            char32_t codePoint = static_cast<char32_t>(point);
+            replacement = QString::fromUcs4(&codePoint, 1);
+        }
+        text.replace(match.capturedStart(0), match.capturedLength(0), replacement);
+        at = match.capturedStart(0) + replacement.size();
+    }
+    text.replace(QStringLiteral("&amp;"), QLatin1String("&"));
+    text.replace(QRegularExpression(QStringLiteral("\r\n?")), QLatin1String("\n"));
+    return text.left(maxContentBytes);
+}
+
+QJsonObject parseTags(const QString &content) {
+    QJsonObject tags;
+    static const QRegularExpression tagLine(
+        QStringLiteral("^\\s*\\[([a-z]+):([^]\\n]*)\\]\\s*$"),
+        QRegularExpression::CaseInsensitiveOption | QRegularExpression::MultilineOption);
+    auto iterator = tagLine.globalMatch(content);
+    while (iterator.hasNext()) {
+        const auto match = iterator.next();
+        const auto key = match.captured(1).toLower();
+        if (!tags.contains(key)) {
+            tags.insert(key, match.captured(2).trimmed());
+        }
+    }
+    return tags;
+}
+
+struct LrcLine {
+    double startMs = 0;
+    QString text;
+    QString translation;
+    QJsonArray words;
+};
+
+QJsonArray lrcLinesToJson(const std::vector<LrcLine> &lines) {
+    QJsonArray array;
+    for (const auto &line : lines) {
+        QJsonObject value{{"startMs", line.startMs},
+                          {"endMs", QJsonValue()},
+                          {"text", line.text},
+                          {"translation", line.translation},
+                          {"words", line.words}};
+        if (!line.words.isEmpty()) {
+            value["endMs"] = line.words.last().toObject()["endMs"].toDouble();
+        }
+        array.append(value);
+    }
+    return array;
+}
+} // namespace
+
+QJsonObject normalize(const QString &rawText, const QString &encoding) {
+    const auto content = cleanText(rawText);
+    static const QRegularExpression lineStamps(
+        QStringLiteral("^\\s*((?:\\[-?\\d+:\\d+(?:[.:]\\d+)?\\])+)(.*)$"));
+    static const QRegularExpression stampToken(
+        QStringLiteral("\\[([-+]?\\d+):(\\d+)(?:[.:](\\d+))?\\]"));
+    static const QRegularExpression translationSuffix(QStringLiteral("【(.*)】$"));
+    static const QRegularExpression wordTag(
+        QStringLiteral("<(\\d+):(\\d+)(?:[.:](\\d+))?>"));
+
+    std::vector<LrcLine> lines;
+    const auto rows = content.split(QLatin1Char('\n'));
+    for (const auto &row : rows) {
+        const auto stamped = lineStamps.match(row);
+        if (!stamped.hasMatch()) {
+            continue;
+        }
+        auto body = stamped.captured(2);
+        QString translation;
+        const auto translated = translationSuffix.match(body);
+        if (translated.hasMatch()) {
+            translation = translated.captured(1);
+            body = body.left(translated.capturedStart(1)).trimmed();
+        } else {
+            body = body.trimmed();
+        }
+        std::vector<LrcLine> expanded;
+        auto stamps = stampToken.globalMatch(stamped.captured(1));
+        while (stamps.hasNext()) {
+            const auto stamp = stamps.next();
+            const double minutes = stamp.captured(1).toDouble();
+            const double seconds = stamp.captured(2).toDouble();
+            const double fraction = stamp.captured(3).isEmpty()
+                                        ? 0.0
+                                        : (QStringLiteral("0.") + stamp.captured(3)).toDouble();
+            const auto startMs = qRound((minutes * 60 + seconds) * 1000 + fraction * 1000);
+            LrcLine line;
+            line.startMs = startMs;
+            line.translation = translation;
+            auto words = wordTag.globalMatch(body);
+            if (words.hasNext()) {
+                // 增强 LRC 词时间：首个词段归行起点，后续词段归各自标签时间。
+                QString remainder = body;
+                double wordStart = startMs;
+                QJsonArray wordArray;
+                QString wordText;
+                while (words.hasNext()) {
+                    const auto word = words.next();
+                    const auto spoken = remainder.left(word.capturedStart(0));
+                    wordText += spoken;
+                    if (!wordArray.isEmpty()) {
+                        wordArray.append(QJsonObject{
+                            {"startMs", wordStart},
+                            {"endMs", word.captured(1).toDouble() * 60000 +
+                                          word.captured(2).toDouble() * 1000},
+                            {"text", spoken.trimmed()}});
+                    }
+                    wordStart = word.captured(1).toDouble() * 60000 +
+                                word.captured(2).toDouble() * 1000;
+                    remainder = remainder.mid(word.capturedEnd(0));
+                }
+                wordText = wordText.trimmed();
+                if (!wordArray.isEmpty()) {
+                    line.words = wordArray;
+                    line.text = wordText;
+                    expanded.push_back(line);
+                    continue;
+                }
+                line.text = wordText;
+                expanded.push_back(line);
+                continue;
+            }
+            line.text = body;
+            expanded.push_back(line);
+        }
+        for (auto &line : expanded) {
+            lines.push_back(line);
+        }
+    }
+    std::stable_sort(lines.begin(), lines.end(),
+                     [](const LrcLine &left, const LrcLine &right) {
+                         return left.startMs < right.startMs;
+                     });
+
+    const auto tags = parseTags(content);
+    // 只移除具有明确角色或文件头身份的署名行（LyricsCore 语义）。
+    static const QRegularExpression creditRole(
+        QStringLiteral("^(作词|作曲|编曲|制谱|演唱|制作人|录音棚|录音师|混音师|母带制作|民谣吉他|"
+                       "电吉他|手风琴|第一小提琴|第二小提琴|中提琴|大提琴|词|曲|lyrics by|"
+                       "composed by|written by|produced by|arranged by)(?:\\s+[^:：]+)?\\s*[:：]"),
+        QRegularExpression::CaseInsensitiveOption);
+    const auto title = tags.value("ti").toString().trimmed();
+    const auto artist = tags.value("ar").toString().trimmed();
+    lines.erase(std::remove_if(lines.begin(), lines.end(),
+                               [&](const LrcLine &line) {
+                                   const auto text = line.text.trimmed();
+                                   if (creditRole.match(text).hasMatch()) {
+                                       return true;
+                                   }
+                                   return !title.isEmpty() && !artist.isEmpty() &&
+                                          text == title + QLatin1String(" - ") + artist;
+                               }),
+                lines.end());
+
+    bool offsetOk = false;
+    const auto offsetValue = tags.value("offset").toString().toDouble(&offsetOk);
+    const auto offsetMs = offsetOk && std::abs(offsetValue) <= 10000 ? offsetValue : 0.0;
+
+    bool hasContent = false;
+    QSet<double> uniqueStarts;
+    bool wordTimed = false;
+    for (const auto &line : lines) {
+        uniqueStarts.insert(line.startMs);
+        if (!line.words.isEmpty()) {
+            wordTimed = true;
+        }
+        const auto trimmed = line.text.trimmed();
+        if (trimmed.isEmpty() || creditRole.match(trimmed).hasMatch() ||
+            trimmed.startsWith(QStringLiteral("纯音乐")) ||
+            trimmed.startsWith(QStringLiteral("此歌曲为没有填词的纯音乐"))) {
+            continue;
+        }
+        hasContent = true;
+    }
+    const bool timed = hasContent && uniqueStarts.size() > 1;
+    QString plainText;
+    if (!timed) {
+        static const QRegularExpression tagLineOnly(
+            QStringLiteral("^\\[[a-z]+:.*\\]\\s*$"),
+            QRegularExpression::CaseInsensitiveOption | QRegularExpression::MultilineOption);
+        static const QRegularExpression anyBracket(QStringLiteral("\\[[^]\\n]+\\]"));
+        plainText = content;
+        plainText.remove(tagLineOnly);
+        plainText.remove(anyBracket);
+        plainText = plainText.trimmed();
+    }
+
+    QJsonObject document{{"version", 1},
+                         {"source", QStringLiteral("local")},
+                         {"timing", timed ? (wordTimed ? QStringLiteral("word")
+                                                       : QStringLiteral("line"))
+                                          : QStringLiteral("none")},
+                         {"offsetMs", offsetMs},
+                         {"lines", timed ? lrcLinesToJson(lines) : QJsonArray()},
+                         {"plainText", plainText}};
+    if (!encoding.isEmpty()) {
+        document["encoding"] = encoding;
+    }
+    return document;
+}
+
+QJsonObject documentFromBytes(const QByteArray &bytes, const QString &hint) {
+    const auto decoded = decode(bytes, hint);
+    if (!decoded.ok || decoded.text.trimmed().isEmpty()) {
+        return {};
+    }
+    return normalize(decoded.text, decoded.encoding);
+}
+
 } // namespace LocalLyrics

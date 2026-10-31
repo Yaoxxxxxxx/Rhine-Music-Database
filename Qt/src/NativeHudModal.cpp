@@ -151,6 +151,18 @@ void NativeHud::modalDraw(double width) {
             button(label, bounds.x() + 10, bounds.y() + 11 + index * 42, bounds.width() - 20, 42,
                    "player:lyrics-source:" + sources[index], 15);
         }
+        // 本地版：解码失败时可手动指定编码重解（T5b 第三层兜底）。
+        text("手动指定编码", bounds.x() + 10, bounds.y() + 11 + sources.size() * 42 + 4, 13, "demibold");
+        const QStringList encodings{"utf-8", "gbk", "big5", "shift-jis"};
+        const QStringList encodingLabels{"UTF-8", "GBK", "Big5", "Shift-JIS"};
+        const auto currentEncoding = music.player.lyrics.localEncodingFor(music.player.current);
+        for (int index = 0; index < encodings.size(); ++index) {
+            const auto label =
+                (currentEncoding == encodings[index] ? QStringLiteral("✓ ") : QString()) +
+                encodingLabels[index];
+            button(label, bounds.x() + 10, bounds.y() + 11 + (sources.size() + 1 + index) * 42,
+                   bounds.width() - 20, 42, "player:lyrics-encoding:" + encodings[index], 15);
+        }
         m_modalControls = false;
         restore();
         return;

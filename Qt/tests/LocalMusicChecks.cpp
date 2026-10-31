@@ -273,9 +273,8 @@ int main(int argc, char **argv) {
     const auto track = music.lists[0].first().toObject();
     check(write(root + "/album/one.lrc", "[00:00.00]one\n[00:01.00]two\n"), "create sidecar lyrics");
     music.player.play(track);
-    check(waitFor([&] { return music.player.lyrics.status == "ready"; }) &&
-              requests == QStringList{"/local/lyrics"},
-          "local cover and sidecar lyrics suppress matching");
+    check(waitFor([&] { return music.player.lyrics.status == "ready"; }) && requests.isEmpty(),
+          "local cover and sidecar lyrics parse locally without any request");
     music.player.stop();
     requests.clear();
     check(QFile::remove(root + "/album/one.lrc"), "remove sidecar lyrics");
@@ -287,17 +286,25 @@ int main(int argc, char **argv) {
     QObject::connect(&music.player.lyrics, &LyricsController::coverMatched, &music,
                      [&](QString, QString url) { matchedCover = url; });
     music.player.lyrics.load(missing);
-    // T3 中间态：歌词在线匹配仍经 fixture 服务，但 loadCover 已不再在线取图，
-    // coverMatched 不会完成（T7 将整块移除）。
-    check(waitFor([&] {
-              return requests.contains("/native/netease/search") &&
-                     requests.contains("/native/netease/lyrics");
-          }) &&
-              matchedCover.isEmpty(),
-          "missing local metadata matches lyrics online while covers stay local");
+    // T5b：本地曲目缺歌词直接 empty（localSource 缺省 local，不再在线匹配）；
+    // 封面补齐的遗留搜索仍会发出（T7 移除），但 loadCover 已不在线取图，
+    // coverMatched 不会完成。
+    check(waitFor([&] { return music.player.lyrics.status == "empty"; }) &&
+              matchedCover.isEmpty() && !requests.contains("/local/lyrics"),
+          "missing local metadata yields empty state, no bridge round-trip, covers stay local");
     music.switchProvider("qq");
     check(music.provider == "local" && music.local->songs().size() == 1,
           "online provider switch is rejected and local index retained");
+    // 缺失本地歌词：状态为 empty 而非 error，且不发起任何请求（T5b）。
+    auto noLyrics = song;
+    noLyrics["provider"] = "local";
+    noLyrics["path"] = first;
+    noLyrics["cover"] = "";
+    noLyrics["localLyrics"] = "";
+    requests.clear();
+    music.player.lyrics.load(noLyrics);
+    check(waitFor([&] { return music.player.lyrics.status == "empty"; }) && requests.isEmpty(),
+          "local track without lyrics yields empty state without requests");
     if (QMediaDevices::defaultAudioOutput().isNull()) {
         qWarning() << "Local audio output unavailable; decoder/output check not verified";
     } else {
