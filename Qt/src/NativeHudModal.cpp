@@ -28,7 +28,6 @@ QString modalTitle(const QString &modal, const MusicLibrary &music) {
                                                 {"disc-rotation-warning", "DISC ROTATION"},
                                                 {"saved", "MY MUSIC"},
                                                 {"player", "NOW PLAYING"},
-                                                {"discover", "DISCOVER MUSIC"},
                                                 {"playlist-form", "PLAYLIST EDITOR"},
                                                 {"playlist-picker", "PLAYLIST DIRECTORY"},
                                                 {"confirm", "CONFIRM DELETE"}};
@@ -52,7 +51,6 @@ QString modalSubtitle(const QString &modal, const MusicLibrary &music) {
                                                    {"quality", "声音档案 / 播放音质"},
                                                    {"disc-rotation-warning", "开启前请确认资源与功耗风险"},
                                                    {"player", "播放队列 / QUEUE"},
-                                                   {"discover", "推荐 / 排行榜 / 新专辑"},
                                                    {"playlist-form", "编辑我的歌单"},
                                                    {"playlist-picker", "添加到我的歌单"},
                                                    {"confirm", "删除确认"}};
@@ -283,7 +281,7 @@ void NativeHud::platformPanel(double x, double y, double width) {
     platformChoices(x + 53, y + 258, width - 106, true);
     rule(x + 53, y + 490, width - 106, 0.2);
     text("本地版仅提供本地音乐来源；账号与在线平台功能已移除。", x + 53, y + 520, 15);
-    button("文件夹管理 ＋", x + 53, y + 660, 330, 48, "discover", 16);
+    button("文件夹管理 ＋", x + 53, y + 660, 330, 48, "local", 16);
 }
 namespace {
 struct QualityDescription {
@@ -675,7 +673,7 @@ void NativeHud::settings(double x, double y, double width) {
     fill(left, y + 224, usable, 66, tint);
     text("当前平台 / " + music.providerName(), left + 16, y + 247, 18, "demibold");
     button("切换平台 ▾", left + usable - 280, y + 235, 264, 44, "provider", 16);
-    button("文件夹管理 / 导入与索引", left, y + 308, 340, 44, "discover", 16);
+    button("文件夹管理 / 导入与索引", left, y + 308, 340, 44, "local", 16);
     limited(QStringLiteral("本地曲库独立保存，无需登录"), left + 365, y + 322, 15, usable - 365);
     rule(left, y + 376, usable, 0.2);
     text("TERMINAL PREFERENCES / 终端偏好", left, y + 392, 16, "demibold");

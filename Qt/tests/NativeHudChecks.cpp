@@ -300,7 +300,8 @@ bool runNativeHudChecks(const QString &root, Glyphs &glyphs) {
             if (maskCount == 1) {
                 const auto maskStart = maskCommand.at(2).toDouble();
                 const auto maskEnd = maskStart + maskCommand.at(3).toDouble();
-                const auto discoverLeft = getHit(hud.hits, "discover")["x"].toDouble() + 10;
+                // T10 修复后导航首钮动作为 "local"（文件夹管理直达 local 模态）。
+                const auto discoverLeft = getHit(hud.hits, "local")["x"].toDouble() + 10;
                 const auto expectedEnd = discoverLeft;
                 // 默认回归检查遮罩职责，不冻结渐变宽度、采样像素或渲染器的透明度舍入。
                 const auto placed =

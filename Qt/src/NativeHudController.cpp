@@ -501,7 +501,8 @@ void NativeHud::action(QString value) {
     }
     if (value == "skip" || value == "back") {
         m_scene.mode("archive");
-    } else if (QStringList{"search", "saved", "settings"}.contains(value)) {
+    } else if (QStringList{"search", "saved", "settings", "local"}.contains(value)) {
+        // "local"：文件夹管理面板（T4 移除 discover 面板后，本地导入的唯一入口）。
         openModal(value);
     } else if (value == "close-modal") {
         closeModal();

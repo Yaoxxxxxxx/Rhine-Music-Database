@@ -296,7 +296,8 @@ double NativeHud::navigationLeft(double width) {
 }
 void NativeHud::navigation(double width) {
     const auto x = navigationLeft(width) + 210;
-    control("文件夹管理 ＋", x - 210, 118, 184, "discover");
+    // T10 修复：discover 面板已随 T4 移除，文件夹管理直达 local 模态（否则导入入口不可达）。
+    control("文件夹管理 ＋", x - 210, 118, 184, "local");
     control("音乐检索  /", x, 118, 184, "search");
     control(m_music->isLocal() ? "本地曲库" : "＋ 我的音乐", x + 200, 118, 184, "saved");
     control("设置", x + 400, 118, 120, "settings");
@@ -330,19 +331,20 @@ void NativeHud::empty(double width) {
         title = music.libraryName();
         label = "查看歌单详情 →";
         action = "music:directory-info";
-    } else if (music.selectedLane > 0) {
-        title = music.sourceLoading() ? QStringLiteral("正在同步音乐资料…") : music.libraryName();
-        label = "查看我的音乐 →";
-        action = "saved";
     } else if (music.isLocal() && music.local && music.local->songs().isEmpty() && !music.local->busy) {
-        // T10：空库首屏给导入引导，两个动作与本地面板一致（local:folder / local:files）。
+        // T10：空库首屏给导入引导，任意栏目下都生效（场景会自动选列，不能只认 lane 0）；
+        // 两个导入动作与本地面板一致（local:folder / local:files）。
         limited(QStringLiteral("本地音乐库还是空的"), x, 509, 28, width - x - 59, "bold");
         rule(x, 601, width - x - 59);
         text("导入音乐文件夹或文件建立索引；只建索引，音乐文件保留在原位置。", x, 624, 16);
         button("＋ 导入文件夹", x, 703, 210, 32, "local:folder", 14);
         button("导入文件", x + 230, 703, 140, 32, "local:files", 14);
-        button("打开文件夹管理 →", x, 751, 300, 32, "discover", 14);
+        button("打开文件夹管理 →", x, 751, 300, 32, "local", 14);
         return;
+    } else if (music.selectedLane > 0) {
+        title = music.sourceLoading() ? QStringLiteral("正在同步音乐资料…") : music.libraryName();
+        label = "查看我的音乐 →";
+        action = "saved";
     }
     limited(title, x, 509, 28, width - x - 59, "bold");
     rule(x, 601, width - x - 59);
