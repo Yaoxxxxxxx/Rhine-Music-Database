@@ -22,6 +22,10 @@ DesktopTray::DesktopTray(QWindow *window, QObject *parent) : QObject(parent), m_
     m_icon.setParent(this);
     m_icon.setIcon(rhineTrayIcon());
     m_icon.setToolTip(QGuiApplication::applicationDisplayName());
+    // T-017 验收反馈：恢复窗口的正规手势是左键/双击图标，但右键菜单里没有打开项，
+    // 用户直觉的"右键 → 打开"无处可点。补一个显式入口，语义与左键一致。
+    auto restore = m_menu.addAction(QStringLiteral("打开主窗口"));
+    connect(restore, &QAction::triggered, this, &DesktopTray::restoreWindow);
     auto quit = m_menu.addAction(QStringLiteral("退出"));
     connect(quit, &QAction::triggered, this, &DesktopTray::quitApplication);
 #ifdef Q_OS_WIN
