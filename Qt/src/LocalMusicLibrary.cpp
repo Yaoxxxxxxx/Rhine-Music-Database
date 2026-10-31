@@ -104,47 +104,13 @@ bool ignored(const QFileInfo &file, const QVector<IgnoreRule> &rules) {
     }
     return excluded;
 }
-QString folderCover(const QString &directory) {
-    const QDir folder(directory);
-    const auto entries = folder.entryInfoList(QDir::Files | QDir::Readable, QDir::Name);
-    for (const auto &name : {"cover", "folder", "front"}) {
-        for (const auto &file : entries) {
-            if (file.completeBaseName().compare(name, Qt::CaseInsensitive) == 0 &&
-                QStringList{"jpg", "jpeg", "png", "webp"}.contains(file.suffix().toLower())) {
-                return file.absoluteFilePath();
-            }
-        }
-    }
-    return {};
-}
 QString fingerprint(const QFileInfo &file, const QString &cover) {
     const QFileInfo image(cover);
     return QString::number(file.size()) + ':' + QString::number(file.lastModified().toMSecsSinceEpoch()) +
            ':' + cover + ':' + QString::number(image.size()) + ':' +
            QString::number(image.lastModified().toMSecsSinceEpoch());
 }
-QString storeCover(const QByteArray &bytes, const QString &storage) {
-    if (bytes.isEmpty() || bytes.size() > 16 * 1024 * 1024) {
-        return {};
-    }
-    QBuffer buffer;
-    buffer.setData(bytes);
-    buffer.open(QIODevice::ReadOnly);
-    QImageReader reader(&buffer);
-    const auto size = reader.size();
-    if (!size.isValid() || size.width() > 8192 || size.height() > 8192) {
-        return {};
-    }
-    const auto path = storage + "/covers/" + digest(bytes);
-    if (!QFileInfo::exists(path)) {
-        QSaveFile file(path);
-        if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !file.commit()) {
-            return {};
-        }
-    }
-    return QUrl::fromLocalFile(path).toString();
-}
-QJsonObject readTrack(const QFileInfo &file, const QString &cover, const QString &storage) {
+QJsonObject readTrack(const QFileInfo &file, const QString &storage) {
 #ifdef Q_OS_WIN
     const auto filename = file.absoluteFilePath().toStdWString();
 #else
@@ -189,7 +155,7 @@ QJsonObject readTrack(const QFileInfo &file, const QString &cover, const QString
                       {"sampleRate", properties->sampleRate()},
                       {"bitrate", properties->bitrate()},
                       {"format", file.suffix().toUpper()},
-                      {"fingerprint", fingerprint(file, cover)},
+                      {"fingerprint", fingerprint(file, QString())},
                       {"date", tag && tag->year() ? QString::number(tag->year()) : QString()}};
     const auto tags = reference.properties();
     const auto albumArtist =
@@ -202,23 +168,6 @@ QJsonObject readTrack(const QFileInfo &file, const QString &cover, const QString
         trackArtists.append(QJsonObject{{"id", digest(name.toUtf8())}, {"name", name}});
     }
     track["artists"] = trackArtists;
-    QByteArray bytes;
-    if (!cover.isEmpty()) {
-        QFile image(cover);
-        if (image.open(QIODevice::ReadOnly) && image.size() <= 16 * 1024 * 1024) {
-            bytes = image.readAll();
-        }
-    }
-    if (bytes.isEmpty()) {
-        for (const auto &picture : reference.complexProperties("PICTURE")) {
-            const auto image = picture.value("data").toByteVector();
-            if (!image.isEmpty() && image.size() <= 16 * 1024 * 1024) {
-                bytes = QByteArray(image.data(), int(image.size()));
-                break;
-            }
-        }
-    }
-    track["cover"] = storeCover(bytes, storage);
     if (tags.contains("LYRICS")) {
         track["localLyrics"] = string(tags.value("LYRICS").toString()).left(1024 * 1024);
     }
@@ -242,7 +191,6 @@ ScanResult scanRoots(const QJsonArray &roots, const QJsonArray &previous, const 
     QJsonArray songs;
     QSet<QString> visited;
     QSet<QString> indexed;
-    QHash<QString, QString> folderCovers;
     const QSet<QString> formats{"mp3", "flac", "m4a",  "mp4", "aac", "ogg", "opus",
                                 "ape", "wav",  "aiff", "aif", "wv",  "wma", "mpc"};
     std::function<void(QFileInfo, QVector<IgnoreRule>)> walk;
@@ -278,19 +226,13 @@ ScanResult scanRoots(const QJsonArray &roots, const QJsonArray &previous, const 
         }
         indexed.insert(path);
         const auto directory = file.absolutePath();
-        if (!folderCovers.contains(directory)) {
-            folderCovers.insert(directory, folderCover(directory));
-        }
-        const auto cover = folderCovers.value(directory);
         const auto cached = old.value(path);
-        if (!cached.isEmpty() && cached["fingerprint"] == fingerprint(file, cover) &&
-            (cached["cover"].toString().isEmpty() ||
-             QFileInfo::exists(QUrl(cached["cover"].toString()).toLocalFile()))) {
+        if (!cached.isEmpty() && cached["fingerprint"] == fingerprint(file, QString())) {
             songs.append(cached);
             ++result.reused;
             return;
         }
-        auto track = readTrack(file, cover, storage);
+        auto track = readTrack(file, storage);
         if (!track.isEmpty()) {
             songs.append(track);
             ++result.added;

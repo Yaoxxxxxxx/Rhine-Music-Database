@@ -196,9 +196,10 @@ int main(int argc, char **argv) {
     check(song["title"] == "First Song" && song["artist"] == "Fixture Artist" &&
               song["album"] == "Fixture Album" && song["duration"].toInt() == 4000,
           "real TagLib metadata");
-    check(!song["cover"].toString().isEmpty() && local.collections("album").size() == 1 &&
+    // T7：本地库不再提取封面，曲目与合集均无 cover 字段。
+    check(song["cover"].toString().isEmpty() && local.collections("album").size() == 1 &&
               local.collections("folder").size() == 1 && local.collections("artist").size() == 1,
-          "cover asset and distinct collection types");
+          "distinct collection types without cover extraction");
     qInfo() << "Indexed tracks:" << local.songs().size() << local.status;
     const auto originalId = song["id"];
     local.importPaths({root});
@@ -284,16 +285,11 @@ int main(int argc, char **argv) {
     auto missing = song;
     missing["cover"] = "";
     missing["localLyrics"] = "";
-    QString matchedCover;
-    QObject::connect(&music.player.lyrics, &LyricsController::coverMatched, &music,
-                     [&](QString, QString url) { matchedCover = url; });
     music.player.lyrics.load(missing);
-    // T5b：本地曲目缺歌词直接 empty（localSource 缺省 local，不再在线匹配）；
-    // 封面补齐的遗留搜索仍会发出（T7 移除），但 loadCover 已不在线取图，
-    // coverMatched 不会完成。
+    // T7：本地曲目缺歌词直接 empty，封面匹配已整体移除（无任何在线封面动作）。
     check(waitFor([&] { return music.player.lyrics.status == "empty"; }) &&
-              matchedCover.isEmpty() && !requests.contains("/local/lyrics"),
-          "missing local metadata yields empty state, no bridge round-trip, covers stay local");
+              !requests.contains("/local/lyrics"),
+          "missing local metadata yields empty state, no bridge round-trip, no cover matching");
     music.switchProvider("qq");
     check(music.provider == "local" && music.local->songs().size() == 1,
           "online provider switch is rejected and local index retained");

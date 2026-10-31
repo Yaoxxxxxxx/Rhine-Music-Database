@@ -9,7 +9,6 @@ class LyricsController : public QObject {
     explicit LyricsController(Host *host, QObject *parent = nullptr);
     void clear();
     void load(const QJsonObject &track, bool retry = false);
-    void matchCover(const QJsonObject &track);
     void selectLocalSource(const QJsonObject &track, const QString &source);
     void selectEncoding(const QJsonObject &track, const QString &encoding);
     void importLyricsFor(const QJsonObject &track, const QString &lyricsPath);
@@ -40,7 +39,6 @@ class LyricsController : public QObject {
 
   signals:
     void changed();
-    void coverMatched(QString key, QString url);
 
   private:
     struct Load {
@@ -54,9 +52,7 @@ class LyricsController : public QObject {
         QJsonArray candidates;
         int candidate = 0;
         bool needsLyrics = true;
-        bool needsCover = false;
         QString lyricSource;
-        QStringList coverRequests;
     };
     using Pending = std::shared_ptr<Load>;
     Host *m_host;
@@ -78,8 +74,6 @@ class LyricsController : public QObject {
     void loadLocal(const QJsonObject &track, const Pending &pending);
     void search(const Pending &pending);
     void fetchCandidate(const Pending &pending);
-    void loadCandidateCover(const Pending &pending, const QJsonObject &candidate, const QString &provider);
-    void tryCover(const Pending &pending, const QString &url);
     void finish(const Pending &pending);
     void accept(QJsonObject document, const QJsonObject &track);
     void persist();

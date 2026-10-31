@@ -175,7 +175,6 @@ MusicPlayer::MusicPlayer(Host *host, MusicApi *api, QObject *parent)
             quality)) {
         quality = "exhigh";
     }
-    localCovers = QJsonDocument::fromJson(host->preference("local-cover-cache").toUtf8()).object();
     alternative = host->preference("alternate-source") == "on";
     const auto saved = QJsonDocument::fromJson(host->preference("play-history").toUtf8()).array();
     const QRegularExpression identifier(QStringLiteral("^[a-zA-Z0-9_-]{1,80}$"));
@@ -189,33 +188,7 @@ MusicPlayer::MusicPlayer(Host *host, MusicApi *api, QObject *parent)
         }
     }
     connect(&lyrics, &LyricsController::changed, this, &MusicPlayer::changed);
-    connect(&lyrics, &LyricsController::coverMatched, this, [this](QString key, QString url) {
-        if (current["provider"] != "local" || LyricsController::trackKey(current) != key ||
-            !current["cover"].toString().isEmpty()) {
-            return;
-        }
-        const auto alive = valid(m_generation);
-        m_host->loadCover(url, [this, alive, url](QString image) {
-            if (alive() && !image.isEmpty()) {
-                coverImage = image;
-                current["cover"] = url;
-                const auto key = current["id"].toString() + ':' + current["fingerprint"].toString();
-                localCovers[key] = url;
-                while (localCovers.size() > 200) {
-                    localCovers.remove(localCovers.begin().key());
-                }
-                m_host->setPreference(
-                    "local-cover-cache",
-                    QString::fromUtf8(QJsonDocument(localCovers).toJson(QJsonDocument::Compact)));
-                if (index >= 0 && index < queue.size()) {
-                    queue.replace(index, current);
-                }
-                emit changed();
-            }
-        });
-    });
 }
-
 MusicApi::Valid MusicPlayer::valid(quint64 generation) {
     return [owner = QPointer(this), generation] { return owner && owner->m_generation == generation; };
 }
@@ -331,37 +304,7 @@ void MusicPlayer::prepare(QJsonObject track, quint64 generation, bool reload) {
             return;
         }
     }
-    if (track["provider"] == "local" && track["cover"].toString().isEmpty()) {
-        const auto key = track["id"].toString() + ':' + track["fingerprint"].toString();
-        if (localCovers.contains(key)) {
-            track["cover"] = localCovers[key];
-            current = track;
-        }
-    }
     if (!reload) {
-        if (!track["cover"].toString().isEmpty()) {
-            m_host->loadCover(track["cover"].toString(), [this, alive = valid(generation)](QString key) {
-                if (!alive()) {
-                    return;
-                }
-                coverImage = key;
-                if (key.isEmpty() && current["provider"] == "local") {
-                    current["cover"] = "";
-                    const auto cacheKey = current["id"].toString() + ':' + current["fingerprint"].toString();
-                    localCovers.remove(cacheKey);
-                    m_host->setPreference(
-                        "local-cover-cache",
-                        QString::fromUtf8(QJsonDocument(localCovers).toJson(QJsonDocument::Compact)));
-                    // 下一轮再补图，确保同步失败回调不会早于本次歌词初始化。
-                    m_host->schedule(0, [this, alive] {
-                        if (alive()) {
-                            lyrics.matchCover(current);
-                        }
-                    });
-                }
-                emit changed();
-            });
-        }
         if (!m_restoringSession) {
             emit trackSelected(current);
         }

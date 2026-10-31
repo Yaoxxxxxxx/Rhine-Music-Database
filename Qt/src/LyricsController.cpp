@@ -153,62 +153,6 @@ MusicApi::Valid LyricsController::valid(const Pending &pending) {
     };
 }
 
-/** 本地歌曲封面匹配 */
-void LyricsController::matchCover(const QJsonObject &track) {
-    if (track["provider"] != "local" || trackKey(track) != currentKey) {
-        return;
-    }
-    auto pending = std::make_shared<Load>();
-    pending->generation = m_generation;
-    pending->track = track;
-    pending->needsLyrics = false;
-    pending->needsCover = true;
-    supplement(pending);
-}
-
-void LyricsController::tryCover(const Pending &pending, const QString &url) {
-    if (!pending->needsCover || url.isEmpty() || pending->coverRequests.contains(url)) {
-        return;
-    }
-    pending->coverRequests.append(url);
-    m_host->loadCover(url, [this, pending, url, alive = valid(pending)](QString image) {
-        if (alive() && pending->needsCover && !image.isEmpty()) {
-            pending->needsCover = false;
-            emit coverMatched(trackKey(pending->track), url);
-        }
-    });
-}
-
-/** 搜索条目缺图时复用同一平台的歌曲详情；仍以录音信息核对，避免套用同名异曲封面。 */
-void LyricsController::loadCandidateCover(const Pending &pending, const QJsonObject &candidate,
-                                          const QString &provider) {
-    const auto cover = candidate["cover"].toString();
-    if (!cover.isEmpty()) {
-        tryCover(pending, cover);
-        return;
-    }
-    const auto key = "detail:" + provider + ':' + candidate["id"].toString();
-    if (pending->coverRequests.contains(key)) {
-        return;
-    }
-    pending->coverRequests.append(key);
-    api(provider).call(
-        "songs", {QJsonValue(QJsonArray{candidate["id"]})},
-        [this, pending](MusicReply reply) {
-            if (!reply.ok() || !pending->needsCover) {
-                return;
-            }
-            for (const auto &value : reply.value.toArray()) {
-                const auto song = value.toObject();
-                if (sameRecording(pending->track, song)) {
-                    tryCover(pending, song["cover"].toString());
-                }
-            }
-        },
-        valid(pending));
-}
-
-/** 本地歌曲歌词来源选择 */
 void LyricsController::selectLocalSource(const QJsonObject &track, const QString &source) {
     if (remoteCommand("source", {{"track", track}, {"source", source}})) {
         return;
@@ -305,7 +249,6 @@ void LyricsController::load(const QJsonObject &track, bool retry) {
         auto pending = std::make_shared<Load>();
         pending->generation = m_generation;
         pending->track = track;
-        pending->needsCover = track["cover"].toString().isEmpty();
         loadLocal(track, pending);
         return;
     }
@@ -384,17 +327,7 @@ void LyricsController::search(const Pending &pending) {
                         }
                     }
                 }
-                if (pending->needsCover) {
-                    for (const auto &entry : pending->candidates) {
-                        loadCandidateCover(pending, entry.toObject(), PROVIDERS[pending->provider]);
-                    }
-                }
-                if (!pending->needsLyrics && !pending->needsCover) {
-                    return;
-                }
                 if (!pending->needsLyrics) {
-                    ++pending->query;
-                    search(pending);
                     return;
                 }
                 pending->candidate = 0;
@@ -425,12 +358,6 @@ void LyricsController::fetchCandidate(const Pending &pending) {
                     document["sourceTrackId"] = candidate["id"];
                     accept(document, pending->track);
                     pending->needsLyrics = false;
-                    // 找到歌词后仍补齐缺失封面，避免首个平台缺封面时过早结束。
-                    if (pending->needsCover) {
-                        pending->lyricSource.clear();
-                        pending->provider = 0;
-                        supplement(pending);
-                    }
                     return;
                 }
                 ++pending->candidate;
@@ -572,9 +499,6 @@ void LyricsController::loadLocal(const QJsonObject &track, const Pending &pendin
             status = "empty";
             message = QStringLiteral("没有本地歌词文件或内嵌歌词，可选择其他来源");
             emit changed();
-            if (pending->needsCover) {
-                supplement(pending);
-            }
             return;
         }
         status = "loading";
@@ -589,7 +513,7 @@ void LyricsController::loadLocal(const QJsonObject &track, const Pending &pendin
                 break;
             }
         }
-        if (pending->needsLyrics || pending->needsCover) {
+        if (pending->needsLyrics) {
             supplement(pending);
         }
         return;
@@ -614,7 +538,7 @@ void LyricsController::loadLocal(const QJsonObject &track, const Pending &pendin
                       : QStringLiteral("歌词解码失败，请另存为 UTF-8 后重试");
         emit changed();
     }
-    if (pending->needsLyrics || pending->needsCover) {
+    if (pending->needsLyrics) {
         supplement(pending);
     }
 }
