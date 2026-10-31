@@ -628,6 +628,20 @@ int main(int argc, char **argv) {
     window->show();
 #endif
     backend->setWindow(window);
+    if (serviceMode) {
+        // 性能模式默认窗口路径（无 FG 呈现层时）此前是服务协议的盲区：
+        // interface.ready 只在 FG 路径上报，服务侧 ready 恒为 false，托盘「打开界面」
+        // 落进 InterfaceSession::show() 的 connected-but-not-ready 缝隙；托盘「退出」
+        // 广播的 quit 也没人接，界面进程会被孤儿化。这里补齐三个入口。
+        QTimer::singleShot(0, playback.get(), [raw = playback.get()] { raw->call("interface.ready"); });
+        QObject::connect(playback.get(), &PlaybackConnection::activateRequested, window, [window] {
+            window->show();
+            window->raise();
+            window->requestActivate();
+        });
+        QObject::connect(playback.get(), &PlaybackConnection::quitRequested, &application,
+                         [] { QCoreApplication::quit(); });
+    }
 #if defined(Q_OS_MACOS) || defined(Q_OS_WIN)
     // 性能模式下托盘归后台服务所有；界面只在单进程路径持有驻留入口。
     std::unique_ptr<DesktopTray> tray;
