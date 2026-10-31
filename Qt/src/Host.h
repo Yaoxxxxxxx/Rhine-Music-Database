@@ -2,11 +2,9 @@
 #include "AudioPlayer.h"
 #include "PlatformFeatures.h"
 #include "PlaybackDiagnostics.h"
-#include "AppUpdater.h"
 #include <QCache>
 #include <QImage>
 #include <QJsonObject>
-#include <QNetworkAccessManager>
 #include <QObject>
 #include "BridgeProcess.h"
 #include "PlaybackConnection.h"
@@ -70,7 +68,6 @@ class Host : public QObject {
     PlaybackDiagnostics playbackDiagnostics;
     void enablePlaybackDiagnostics(bool enabled);
     QJsonObject playbackSnapshot() const;
-    AppUpdater updater;
     QString root;
     bool offline;
     std::function<QJsonObject(QString, QJsonObject)> fixture;
@@ -103,10 +100,6 @@ class Host : public QObject {
         JsonReply callback;
         int epoch;
     };
-    struct CoverWaiter {
-        TextReply callback;
-        int epoch;
-    };
     struct Work {
         QString id, route, key;
         QJsonObject params, cookies;
@@ -118,7 +111,6 @@ class Host : public QObject {
         qint64 expiry;
         QJsonObject body;
     };
-    QHash<QString, QList<CoverWaiter>> coverFlights;
     QHash<QString, Entry> cache;
     QHash<QString, Work> flights;
     QHash<QString, QString> pending;
@@ -130,7 +122,6 @@ class Host : public QObject {
     QString mediaTitle, mediaArtist, mediaAlbum;
     int metadataRevision = 0;
     mutable qint64 lastMediaUpdate = 0;
-    QNetworkAccessManager network;
     mutable QCache<QString, QImage> images{32 * 1024};
     qint64 lastStart = 0;
     QHash<QString, qint64> blockedUntil;

@@ -1,6 +1,7 @@
 #include "Host.h"
 #include <QCoreApplication>
 #include <QElapsedTimer>
+#include <QTemporaryDir>
 #include <QThread>
 
 #ifdef Q_OS_IOS
@@ -54,12 +55,16 @@ bool runNativeHostChecks(const QString &root) {
 
     QImage image(2, 2, QImage::Format_RGBA8888);
     image.fill(Qt::red);
-    const QString cover = "https://music.126.net/native-fixture.jpg?param=1024y1024";
-    host.fixtureImage(cover, image);
+    // 本地版封面只从本地文件读取；在线直下已随旁路移除。
+    // 封面 PNG 必须写临时目录：root 指向已签名的 .app 资源目录，写入会破坏签名封印。
+    QTemporaryDir coverDir;
+    const QString coverPath = coverDir.filePath("native-fixture.png");
+    image.save(coverPath, "PNG");
     bool coverReady = false;
-    host.loadCover("https://music.126.net/native-fixture.jpg?param=128y128",
-                   [&](QString key) { coverReady = key == cover && host.image(key) == image; });
-    ok &= coverReady;
+    host.loadCover(QUrl::fromLocalFile(coverPath).toString(), [&](QString key) {
+        coverReady = !key.isEmpty() && host.image(key).size() == image.size();
+    });
+    ok &= waitFor([&] { return coverReady; });
     QImage largeCover(1024, 1024, QImage::Format_RGBA8888);
     largeCover.fill(Qt::blue);
     host.fixtureImage("current-cover", largeCover);

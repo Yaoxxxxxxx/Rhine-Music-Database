@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
     }
 #endif
     QApplication application(argc, argv);
-    QCoreApplication::setApplicationVersion(AppUpdater::currentVersion());
+    QCoreApplication::setApplicationVersion(QStringLiteral(RHINE_VERSION));
     QCoreApplication::setOrganizationName(AppIdentity::Organization);
     QCoreApplication::setOrganizationDomain(AppIdentity::Id);
     QCoreApplication::setApplicationName(AppIdentity::Id);

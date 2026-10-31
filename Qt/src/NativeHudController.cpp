@@ -46,9 +46,6 @@ NativeHud::NativeHud(Host *host, Glyphs *glyphs, MusicLibrary *music, HudSceneAc
     if (hasMaskStrength) {
         archiveMaskStrength = std::clamp(savedMaskStrength, 0, 100);
     }
-    connect(&host->updater, &AppUpdater::updateAvailable, this, [this] {
-        m_music->status = "发现新版本 " + m_host->updater.latestVersion() + "，可在设置中前往发布页面更新";
-    });
     connect(music, &MusicLibrary::invalidated, this, &NativeHud::finishPage);
     connect(music, &MusicLibrary::invalidated, this,
             [this] { QTimer::singleShot(0, this, &NativeHud::continueSort); });
@@ -361,20 +358,6 @@ void NativeHud::action(QString value) {
         return;
     }
 
-    if (value.startsWith("update:")) {
-        auto &updater = m_host->updater;
-        if (value == "update:check") {
-            updater.check();
-        } else if (value == "update:cancel") {
-            updater.cancel();
-        } else if (value == "update:release") {
-            updater.openRelease();
-        } else if (value == "update:auto") {
-            const bool enabled = m_host->preference("auto-update") != "off";
-            m_host->setPreference("auto-update", enabled ? "off" : "on");
-        }
-        return;
-    }
     auto &music = *m_music;
     const auto parts = value.split(':');
     if (value == "detail:copy") {

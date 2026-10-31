@@ -96,12 +96,8 @@ FetchContent_MakeAvailable(taglib)
 include(cmake/FidelityFX.cmake)
 # 自维护源码和锁定的二维码库构成独立应用目标。
 set(RHINE_APP_SOURCES
-    Qt/src/AppUpdater.cpp
-    Qt/src/AppUpdater.h
     Qt/src/AudioPlayer.cpp
     Qt/src/AudioPlayer.h
-    Qt/src/HttpAudioStream.cpp
-    Qt/src/HttpAudioStream.h
     Qt/src/PlaybackDiagnostics.cpp
     Qt/src/PlaybackDiagnostics.h
     Qt/src/AppStorage.cpp
@@ -231,7 +227,7 @@ if(NOT IOS)
         RHINE_PLAYBACK_SOURCES
         INCLUDE
         REGEX
-        "/(AppUpdater|AppStorage|AudioPlayer|HttpAudioStream|PlaybackDiagnostics|PlaybackConnection|Host|MusicApi|MusicPlayer|LyricsController|Platform)\\.(cpp|h)$|/qrcodegen\\.cpp$"
+        "/(AppStorage|AudioPlayer|PlaybackDiagnostics|PlaybackConnection|Host|MusicApi|MusicPlayer|LyricsController|Platform)\\.(cpp|h)$|/qrcodegen\\.cpp$"
     )
     list(REMOVE_ITEM RHINE_CORE_SOURCES ${RHINE_PLAYBACK_SOURCES})
     add_library(RhinePlaybackCore STATIC ${RHINE_PLAYBACK_SOURCES})
@@ -538,7 +534,7 @@ if(IOS)
 endif()
 enable_testing()
 qt_add_executable(RhinePlatformRegression Qt/tests/PlatformRegression.cpp Qt/src/AppStorage.cpp
-                  Qt/src/AudioPlayer.cpp Qt/src/HttpAudioStream.cpp Qt/src/ProcessMetrics.cpp)
+                  Qt/src/AudioPlayer.cpp Qt/src/ProcessMetrics.cpp)
 target_include_directories(RhinePlatformRegression PRIVATE Qt/src)
 target_link_libraries(RhinePlatformRegression PRIVATE Qt6::Core Qt6::Gui Qt6::Multimedia Qt6::Network
                                                       Qt6::MultimediaPrivate)
@@ -614,14 +610,6 @@ if(MSVC)
 endif()
 add_test(NAME qt_gpu_choice_regression COMMAND RhineGpuChoiceRegression)
 
-qt_add_executable(RhineAudioStreamRegression Qt/tests/AudioStreamChecks.cpp Qt/src/AudioPlayer.cpp
-                  Qt/src/HttpAudioStream.cpp)
-target_include_directories(RhineAudioStreamRegression PRIVATE Qt/src)
-target_link_libraries(RhineAudioStreamRegression PRIVATE Qt6::Core Qt6::Multimedia Qt6::Network)
-if(MSVC)
-    target_compile_options(RhineAudioStreamRegression PRIVATE /utf-8)
-endif()
-add_test(NAME qt_audio_stream_regression COMMAND RhineAudioStreamRegression)
 add_test(NAME qt_offline COMMAND RhineMusicDatabase --self-test)
 set_tests_properties(
     qt_offline
@@ -652,13 +640,6 @@ add_test(NAME qt_native_hud_regression COMMAND RhineNativeHudRegression
                                                "${CMAKE_CURRENT_SOURCE_DIR}/output/resources")
 set_tests_properties(qt_native_hud_regression PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
-qt_add_executable(RhineUpdaterRegression Qt/tests/AppUpdaterChecks.cpp)
-target_link_libraries(RhineUpdaterRegression PRIVATE RhineCore)
-if(MSVC)
-    target_compile_options(RhineUpdaterRegression PRIVATE /utf-8)
-endif()
-add_test(NAME qt_updater_regression COMMAND RhineUpdaterRegression)
-set_tests_properties(qt_updater_regression PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
 qt_add_executable(RhineLocalMusicRegression Qt/tests/LocalMusicChecks.cpp)
 target_link_libraries(RhineLocalMusicRegression PRIVATE RhineCore)

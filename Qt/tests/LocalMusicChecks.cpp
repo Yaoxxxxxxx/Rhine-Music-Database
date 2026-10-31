@@ -287,10 +287,14 @@ int main(int argc, char **argv) {
     QObject::connect(&music.player.lyrics, &LyricsController::coverMatched, &music,
                      [&](QString, QString url) { matchedCover = url; });
     music.player.lyrics.load(missing);
-    check(waitFor([&] { return music.player.lyrics.status == "ready" && !matchedCover.isEmpty(); }) &&
-              requests.contains("/native/netease/search") && requests.contains("/native/netease/lyrics") &&
-              !matchedCover.isEmpty() && requests.contains("/native/qq/search"),
-          "missing local metadata reuses existing online recording and lyrics matching");
+    // T3 中间态：歌词在线匹配仍经 fixture 服务，但 loadCover 已不再在线取图，
+    // coverMatched 不会完成（T7 将整块移除）。
+    check(waitFor([&] {
+              return requests.contains("/native/netease/search") &&
+                     requests.contains("/native/netease/lyrics");
+          }) &&
+              matchedCover.isEmpty(),
+          "missing local metadata matches lyrics online while covers stay local");
     music.switchProvider("qq");
     check(music.provider == "local" && music.local->songs().size() == 1,
           "online provider switch is rejected and local index retained");

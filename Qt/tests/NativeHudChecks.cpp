@@ -369,8 +369,8 @@ bool runNativeHudChecks(const QString &root, Glyphs &glyphs) {
             }
 
             const QStringList requiredSettings{
-                "theme",   "motion",        "startup-animation",  "detail-autoplay", "single-play-mode",
-                "quality", "disc-rotation", "performance:toggle", "update:check",    "replay"};
+                "theme", "motion",        "startup-animation",  "detail-autoplay", "single-play-mode",
+                "quality", "disc-rotation", "performance:toggle", "replay"};
             QStringList reachableSettings = requiredSettings;
 #if defined(Q_OS_MACOS) || defined(Q_OS_WIN)
             // 关闭行为只在持有托盘入口的桌面平台出现。

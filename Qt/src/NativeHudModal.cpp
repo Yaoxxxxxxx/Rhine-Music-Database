@@ -656,8 +656,7 @@ void NativeHud::settings(double x, double y, double width) {
     constexpr double preferenceTop = 424;
     constexpr double rowStep = 66;
     const auto performanceTop = preferenceTop + rows.size() * rowStep + 76 + dropdownExtra;
-    const auto updateTop = performanceTop + 410;
-    const auto projectTop = updateTop + 310;
+    const auto projectTop = performanceTop + 410;
     settingsContentBottom = projectTop + 278;
     const auto viewport =
         QRectF(x + 40, y + SettingsViewportTop, width - 80, SettingsViewportBottom - SettingsViewportTop);
@@ -833,25 +832,6 @@ void NativeHud::settings(double x, double y, double width) {
            y + performanceTop + 258, 264, 44, "performance-mode", 16);
     text("默认开启；最小化或关闭到托盘时只显示静态画面并释放界面资源，重启后生效。", left,
          y + performanceTop + 324, 15);
-    rule(left, y + updateTop - 20, usable, 0.2);
-    text("SOFTWARE UPDATE / 软件更新", left, y + updateTop, 16, "demibold");
-    const auto &updater = m_host->updater;
-    const auto buildLabel = RHINE_RELEASE_BUILD ? QString() : QString(" · 开发版");
-    limited("当前版本 / " + AppUpdater::currentVersion() + buildLabel, left, y + updateTop + 42, 18,
-            usable - 300, "demibold");
-    if (!RHINE_RELEASE_BUILD) {
-        limited(AppUpdater::commitTitle(), left, y + updateTop + 74, 15, usable);
-    }
-    button(m_host->preference("auto-update") == "off" ? "启动检查 / 关闭" : "启动检查 / 开启",
-           left + usable - 280, y + updateTop + 30, 264, 44, "update:auto", 16);
-    limited(updater.status(), left, y + updateTop + 104, 16, usable);
-    button(updater.busy() ? "取消" : "检查更新", left, y + updateTop + 148, 160, 44,
-           updater.busy() ? "update:cancel" : "update:check", 16);
-    if (!updater.busy() && updater.available()) {
-        button("前往更新 ↗", left + 176, y + updateTop + 148, 200, 44, "update:release", 16);
-    }
-    button("发布说明 ↗", left + usable - 200, y + updateTop + 148, 200, 44, "update:release", 16);
-    text("更新将打开 GitHub 发布页面，请在浏览器中下载并安装。", left, y + updateTop + 220, 15);
     rule(left, y + projectTop - 20, usable, 0.2);
     text("PROJECT / 项目与开源参考", left, y + projectTop, 16, "demibold");
     const QVector<QPair<QString, QString>> links{{"本项目 / Rhine Music Database ↗", "project-home"},

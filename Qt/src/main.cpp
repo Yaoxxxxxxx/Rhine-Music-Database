@@ -348,7 +348,7 @@ int main(int argc, char **argv) {
     QGuiApplication application(argc, argv);
 #endif
     application.setWindowIcon(QIcon(":/icons/icon-256.png"));
-    QCoreApplication::setApplicationVersion(AppUpdater::currentVersion());
+    QCoreApplication::setApplicationVersion(QStringLiteral(RHINE_VERSION));
     QGuiApplication::setApplicationDisplayName(AppIdentity::DisplayName);
     const auto args = application.arguments();
 #ifndef Q_OS_IOS
@@ -501,13 +501,6 @@ int main(int argc, char **argv) {
                                              families.isEmpty() ? QString("sans-serif") : families.first());
     engine.rootContext()->setContextProperty("rhine", backend);
     engine.rootContext()->setContextProperty("profiler", profiler);
-    if (!offline && RHINE_RELEASE_BUILD) {
-        QTimer::singleShot(8000, backend, [backend] {
-            if (backend->host.preference("auto-update") != "off") {
-                backend->host.updater.check();
-            }
-        });
-    }
 
     QObject::connect(
         &engine, &QQmlApplicationEngine::objectCreationFailed, &application,

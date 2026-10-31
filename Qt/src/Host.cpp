@@ -42,9 +42,8 @@ static QString routeProvider(const QString &route) {
     return "netease";
 }
 Host::Host(QString path, bool test, QObject *parent, bool service, PlaybackConnection *connection)
-    : QObject(parent), updater(test), root(path), offline(test), remote(test ? nullptr : connection),
+    : QObject(parent), root(path), offline(test), remote(test ? nullptr : connection),
       playbackOnly(service) {
-    connect(&updater, &AppUpdater::changed, this, &Host::invalidate);
     if (remote) {
         connect(remote, &PlaybackConnection::diagnosticEvent, this,
                 [this](QString event, QJsonObject values) { playbackDiagnostics.record(event, values); });
@@ -561,7 +560,6 @@ void Host::setProvider(QString value) {
     ++metadataRevision;
     cache.clear();
     images.clear();
-    coverFlights.clear();
 }
 /**
  * 切换酷狗标准版与概念版，按上游要求重启协议模块，隔离两个版本的令牌。
@@ -581,7 +579,6 @@ void Host::setKugouEdition(QString edition) {
     privateCredentials.clear();
     cache.clear();
     images.clear();
-    coverFlights.clear();
     if (child.state() != BridgeProcess::NotRunning) {
         child.kill();
         child.waitForFinished(1000);
@@ -603,7 +600,6 @@ void Host::logout() {
         ++epoch;
         cache.clear();
         images.clear();
-        coverFlights.clear();
         return;
     }
     mediaControl("stop");
@@ -642,7 +638,6 @@ void Host::logout() {
     }
     cache.clear();
     images.clear();
-    coverFlights.clear();
     if (!offline) {
         if (cookies.isEmpty()) {
             platformDeleteCredential();
@@ -713,109 +708,8 @@ void Host::loadCover(QString input, TextReply callback) {
         }));
         return;
     }
-    QUrl url(input.replace("http://", "https://"));
-    const auto domain = url.host();
-    if (!(domain == "music.126.net" || domain.endsWith(".music.126.net") || domain == "music.163.com" ||
-          domain.endsWith(".music.163.com") || domain == "y.gtimg.cn" || domain == "qpic.y.qq.com" ||
-          domain == "y.qq.com" || domain.endsWith(".kugou.com") || domain.endsWith(".kgimg.com"))) {
-        callback({});
-        return;
-    }
-    QUrlQuery query(url);
-    query.removeAllQueryItems("param");
-    query.addQueryItem("param", "1024y1024");
-    url.setQuery(query);
-    auto key = url.toString();
-    if (images.contains(key)) {
-        callback(key);
-        return;
-    }
-    if (offline) {
-        callback({});
-        return;
-    }
-    if (coverFlights.contains(key)) {
-        coverFlights[key].append({callback, epoch});
-        return;
-    }
-    coverFlights[key] = {{callback, epoch}};
-    const auto imageEpoch = epoch;
-    QNetworkRequest request(url);
-    request.setTransferTimeout(20000);
-    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
-    auto reply = network.get(request);
-    connect(reply, &QNetworkReply::downloadProgress, reply, [reply](qint64 size, qint64) {
-        if (size >= 8 * 1024 * 1024) {
-            reply->abort();
-        }
-    });
-    connect(reply, &QNetworkReply::finished, this, [=, this]() {
-        const auto bytes = reply->readAll();
-        if (imageEpoch != epoch || stopped) {
-            reply->deleteLater();
-            return;
-        }
-        const bool valid = reply->error() == QNetworkReply::NoError &&
-                           reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() == 200 &&
-                           bytes.size() < 8 * 1024 * 1024;
-        reply->deleteLater();
-        if (!valid) {
-            const auto waiters = coverFlights.take(key);
-            for (const auto &waiter : waiters) {
-                if (waiter.epoch == epoch) {
-                    waiter.callback({});
-                }
-            }
-            return;
-        }
-        // 工作者只接触不可变字节和 QImage；回调与缓存仍在 Host 所在线程执行。
-        auto watcher = new QFutureWatcher<QImage>(this);
-        connect(watcher, &QFutureWatcher<QImage>::finished, this, [this, watcher, key, imageEpoch] {
-            const auto image = watcher->result();
-            watcher->deleteLater();
-            if (imageEpoch != epoch || stopped) {
-                return;
-            }
-            const auto waiters = coverFlights.take(key);
-            bool current = false;
-            for (const auto &waiter : waiters) {
-                current |= waiter.epoch == epoch;
-            }
-            if (stopped || !current) {
-                return;
-            }
-            if (image.isNull()) {
-                for (const auto &waiter : waiters) {
-                    if (waiter.epoch == epoch) {
-                        waiter.callback({});
-                    }
-                }
-                return;
-            }
-            // QCache 按内存预算逐项淘汰，不再在第 32 张封面清空所有命中。
-            images.insert(key, new QImage(image), qMax(1, int(image.sizeInBytes() / 1024)));
-            for (const auto &waiter : waiters) {
-                if (waiter.epoch == epoch) {
-                    waiter.callback(key);
-                }
-            }
-        });
-        watcher->setFuture(QtConcurrent::run([bytes] {
-            QBuffer buffer;
-            buffer.setData(bytes);
-            buffer.open(QIODevice::ReadOnly);
-            QImageReader reader(&buffer);
-            const auto size = reader.size();
-            if (!size.isValid() || size.width() > 8192 || size.height() > 8192) {
-                return QImage();
-            }
-            // 保留大封面的细节；小图不在解码阶段放大，避免重复插值。
-            if (size.width() > 1024 || size.height() > 1024) {
-                reader.setScaledSize(size.scaled(1024, 1024, Qt::KeepAspectRatio));
-            }
-            return reader.read();
-        }));
-    });
+    // 本地版：在线封面地址不再取图，直接回空交占位卡渲染。
+    callback({});
 }
 QString Host::qrImage(QString data) {
     if (data.size() > 8 * 1024 * 1024 ||
@@ -1074,7 +968,6 @@ void Host::shutdown() {
         return;
     }
     stopped = true;
-    coverFlights.clear();
     if (!offline) {
         platformMediaCommands({});
         platformMediaInfo({}, {}, {}, {});

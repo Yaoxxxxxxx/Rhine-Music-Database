@@ -11,9 +11,8 @@
 #include <QVariantMap>
 #include <functional>
 #include <memory>
-#include "HttpAudioStream.h"
 
-// 在线模式只接收锁定上游的播放链接；本地模式只接收文件 URL
+// 本地模式只接收文件 URL
 class AudioPlayer {
   public:
     explicit AudioPlayer(std::function<void()> changed = {});
@@ -32,7 +31,6 @@ class AudioPlayer {
     QAudioOutput output;
     std::unique_ptr<QMediaPlayer> player;
     std::unique_ptr<QAudioBufferOutput> decodedOutput;
-    std::unique_ptr<HttpAudioStream> stream;
     void startMediaSource(const QUrl &url);
     void releasePlayer();
     bool diagnosticsEnabled = false;

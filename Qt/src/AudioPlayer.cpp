@@ -167,41 +167,7 @@ void AudioPlayer::startMediaSource(const QUrl &url) {
         }
         return;
     }
-    pendingSource = url;
-    stream = std::make_unique<HttpAudioStream>(url);
-    stream->ready = [this, url] {
-        if (outputUnavailable) {
-            return;
-        }
-        pendingSource.clear();
-        progressClock.restart();
-        player->setSourceDevice(stream.get(), url);
-        if (playbackRequested && recoveryPosition < 0) {
-            player->play();
-        }
-        if (playbackChanged) {
-            playbackChanged();
-        }
-    };
-    stream->transportChanged = [this] { diagnose("media-transfer"); };
-    stream->failed = [this] {
-        pendingFailure = true;
-        if (player->source().isEmpty()) {
-            error = QStringLiteral("音频连接失败，请重试或打开来源页面");
-            pendingSource.clear();
-            playbackRequested = false;
-            playbackWatchdog.stop();
-        }
-        if (playbackChanged) {
-            playbackChanged();
-        }
-    };
-    if (!stream->start()) {
-        error = QStringLiteral("无法创建音频缓冲，请检查临时目录空间");
-        pendingSource.clear();
-        playbackRequested = false;
-        playbackWatchdog.stop();
-    }
+    // 本地版只有本地文件音源；在线字节流（HttpAudioStream）已随在线旁路移除。
 }
 /**
  * 等待新会话可跳转后恢复实际播放位置；FFmpeg 可能直接进入 BufferedMedia。
@@ -462,7 +428,7 @@ QJsonObject AudioPlayer::diagnosticState() const {
         codec > int(QMediaFormat::AudioCodec::LastAudioCodec)) {
         codec = int(QMediaFormat::AudioCodec::Unspecified);
     }
-    auto values = stream ? stream->diagnosticState() : QJsonObject{};
+    auto values = QJsonObject{};
     const QJsonObject playback{
         {"sourceSerial", sourceSerial},
         {"sourceKind", sourceKind},
@@ -571,14 +537,10 @@ AudioPlayer::~AudioPlayer() {
 void AudioPlayer::releasePlayer() {
     ++decoderObservation;
     QObject::disconnect(decoderConnection);
-    if (stream) {
-        stream->cancel();
-    }
     if (player) {
         // 销毁旧会话期间不再发送状态快照，避免访问正在释放的成员。
         player->blockSignals(true);
     }
     decodedOutput.reset();
     player.reset();
-    stream.reset();
 }
