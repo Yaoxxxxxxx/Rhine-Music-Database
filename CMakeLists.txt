@@ -124,6 +124,8 @@ set(RHINE_APP_SOURCES
     Qt/src/Host.cpp
     Qt/src/Host.h
     Qt/src/MusicApi.cpp
+    Qt/src/LocalLyrics.cpp
+    Qt/src/LocalLyrics.h
     Qt/src/MusicApi.h
     Qt/src/LyricsController.cpp
     Qt/src/LyricsController.h
@@ -247,6 +249,13 @@ if(NOT IOS)
     set(RHINE_SYSTEM_CORE RhinePlaybackCore)
 endif()
 add_library(RhineCore STATIC ${RHINE_CORE_SOURCES})
+# macOS 的 iconv 在独立 libiconv 里，必须显式链接；glibc/iOS 自带无需处理（T5a）。
+if(NOT WIN32 AND NOT IOS)
+    find_library(RHINE_ICONV_LIBRARY iconv)
+    if(RHINE_ICONV_LIBRARY)
+        target_link_libraries(RhineCore PUBLIC ${RHINE_ICONV_LIBRARY})
+    endif()
+endif()
 target_include_directories(
     RhineCore
     PUBLIC Qt/src
@@ -647,6 +656,14 @@ endif()
 add_test(NAME qt_local_music_regression COMMAND RhineLocalMusicRegression
                                                 "${CMAKE_CURRENT_SOURCE_DIR}/output/resources")
 set_tests_properties(qt_local_music_regression PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+qt_add_executable(RhineLocalLyricsRegression Qt/tests/LocalLyricsChecks.cpp)
+target_link_libraries(RhineLocalLyricsRegression PRIVATE RhineCore)
+if(MSVC)
+    target_compile_options(RhineLocalLyricsRegression PRIVATE /utf-8)
+endif()
+add_test(NAME qt_local_lyrics_regression COMMAND RhineLocalLyricsRegression)
+set_tests_properties(qt_local_lyrics_regression PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
 # FG 闸门探针：验证「setQueueSubmitParams 对离屏帧生效」与「共享 device 上能建交换链」。 需要真实 GPU + 显示服务（或 xvfb + lavapipe），CI runner 没有
 # GPU，所以**不进默认 CTest 集合**：构建后用 `output/qt-build/RhineFgGateProbe` 手动运行，用它给出 "FG 架构成不成立"的硬结论。
