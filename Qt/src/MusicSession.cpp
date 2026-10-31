@@ -1,6 +1,5 @@
 #include "NativeApplication.h"
 #include "AppStorage.h"
-#include "MusicDiscover.h"
 #include <QDir>
 #include <QJsonDocument>
 #include <QSaveFile>
@@ -76,13 +75,7 @@ QJsonObject MusicLibrary::sessionState() const {
             {"albumLoaded", albumLoaded},
             {"playContext", playContext},
             {"directoryInfo", directoryInfo},
-            {"wantsSongDetails", wantsSongDetails},
-            {"discover", QJsonObject{{"tab", discover->tab},
-                                     {"items", discover->items},
-                                     {"offset", discover->offset},
-                                     {"more", discover->more},
-                                     {"category", discover->category},
-                                     {"newSongArea", discover->newSongArea}}}};
+            {"wantsSongDetails", wantsSongDetails}};
 }
 
 bool MusicLibrary::restoreSessionState(const QJsonObject &saved) {
@@ -162,13 +155,6 @@ bool MusicLibrary::restoreSessionState(const QJsonObject &saved) {
     directoryInfo = saved["directoryInfo"].toBool();
     wantsSongDetails = saved["wantsSongDetails"].toBool();
     detailLoading = directoryLoading = trackLoad = false;
-    const auto discovery = saved["discover"].toObject();
-    discover->tab = discovery["tab"].toString("playlists");
-    discover->items = discovery["items"].toArray();
-    discover->offset = nonnegative(discovery["offset"]);
-    discover->more = discovery["more"].toBool();
-    discover->category = discovery["category"].toString("全部");
-    discover->newSongArea = discovery["newSongArea"].toString("5");
     coverImage.clear();
     coverKey.clear();
     emit musicIdentityRequested(current["key"].toString());

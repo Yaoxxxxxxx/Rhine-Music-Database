@@ -79,8 +79,8 @@ bool runNativeHostChecks(const QString &root) {
     host.mediaControl("volume", 0.2);
     ok &= host.mediaState()["volume"].toDouble() == 1.0;
 #else
-    host.playOfficial("invalid", [&](QString error) { invalidId = error == "请先选择一首歌曲"; });
-    host.playOfficial("42", [&](QString value) { official = value == "OFFLINE_PLAY:42"; });
+    host.playOfficial("invalid", [&](QString error) { invalidId = error == "当前平台仅支持面板内播放"; });
+    host.playOfficial("42", [&](QString value) { official = value == "当前平台仅支持面板内播放"; });
 #endif
     ok &= invalidId && official;
 

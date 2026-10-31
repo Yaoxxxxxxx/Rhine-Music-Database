@@ -2,7 +2,6 @@
 #include "GraphicsBackend.h"
 #include "NativeHud.h"
 #include "MusicData.h"
-#include "MusicDiscover.h"
 #include <QJsonDocument>
 #include <QPointer>
 #include <QUrl>
@@ -56,9 +55,6 @@ void NativeHud::openModal(QString kind) {
     if (m_music->isLocal() &&
         QStringList{"login", "quality", "playlist-picker", "playlist-form"}.contains(kind)) {
         return;
-    }
-    if (kind == "discover" && m_music->isLocal()) {
-        kind = "local";
     }
     ++m_searchGeneration;
     if (m_scene.pointer) {
@@ -445,56 +441,6 @@ void NativeHud::action(QString value) {
         }
         return;
     }
-    if (music.isLocal() &&
-        (value.startsWith("discover:") || value.startsWith("quality") || value == "alternative")) {
-        return;
-    }
-    if (value.startsWith("discover:")) {
-        auto &discover = *music.discover;
-        const auto name = parts.value(1);
-        if (name == "tab") {
-            listOffset = 0;
-            categoryPicker = false;
-            categoryPage = 0;
-            discover.load(parts.value(2));
-            if (parts.value(2) == "categories" && discover.categories.isEmpty()) {
-                discover.loadCategories();
-            }
-        } else if (name == "item") {
-            discover.open(parts.value(2).toInt());
-            closeModal();
-        } else if (name == "open") {
-            if (music.openDaily()) {
-                closeModal();
-            }
-        } else if (name == "area" && music.provider == "qq") {
-            listOffset = 0;
-            discover.newSongArea = parts.value(2);
-            discover.load("new-songs");
-        } else if (name == "categories") {
-            categoryPicker = !categoryPicker;
-            categoryPage = 0;
-            if (categoryPicker && discover.categories.size() <= 1) {
-                discover.loadCategories();
-            }
-        } else if (name == "category-page") {
-            const auto pages =
-                std::max(1, (int(discover.categories.size()) + CategoryPageSize - 1) / CategoryPageSize);
-            const auto step = parts.value(2) == "prev" ? -1 : 1;
-            categoryPage = std::clamp(categoryPage + step, 0, pages - 1);
-        } else if (name == "category") {
-            listOffset = 0;
-            categoryPicker = false;
-            discover.category = decode(parts.value(2));
-            discover.load("categories");
-        } else if (name == "more") {
-            discover.load(discover.tab, true);
-        } else if (name == "prev" || name == "next") {
-            const auto maximum = std::max(0, int(discover.items.size()) - 6);
-            listOffset = std::clamp(listOffset + (name == "prev" ? -6 : 6), 0, maximum);
-        }
-        return;
-    }
     if (value.startsWith("player:")) {
         playerAction(parts);
         return;
@@ -549,12 +495,7 @@ void NativeHud::action(QString value) {
         m_scene.viewer(value.mid(7));
         return;
     }
-    if (value == "discover") {
-        openModal("discover");
-        if (!music.isLocal()) {
-            music.discover->load();
-        }
-    } else if (value == "skip" || value == "back") {
+    if (value == "skip" || value == "back") {
         m_scene.mode("archive");
     } else if (QStringList{"search", "saved", "settings"}.contains(value)) {
         openModal(value);

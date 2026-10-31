@@ -230,31 +230,6 @@ void NativeHud::musicAction(const QStringList &parts, const QString &value) {
         if (links.contains(name)) {
             m_host->open(links[name]);
         }
-    } else if (name == "login") {
-        openModal("login");
-        music.loginMethod = "qr";
-        music.startLogin();
-    } else if (name == "kugou-edition") {
-        const QPointer<NativeHud> owner(this);
-        const auto token = m_searchGeneration;
-        music.switchProvider("kugou", parts.value(2), [owner, token](bool ok) {
-            if (ok && owner && owner->modal == "login" && owner->m_searchGeneration == token) {
-                owner->m_music->startLogin();
-            }
-        });
-    } else if (name == "login-method") {
-        const auto method = parts.value(2);
-        const bool supported = method == "qr" || (music.provider == "netease" && method == "phone") ||
-                               (music.provider == "qq" && method == "wechat");
-        if (!supported) {
-            return;
-        }
-        music.cancelLogin();
-        music.loginMethod = method;
-        music.loginStatus.clear();
-        if (QStringList{"qr", "wechat"}.contains(music.loginMethod)) {
-            music.startLogin();
-        }
     } else if (name == "refresh-personal") {
         music.refreshPersonal(musicCollection);
     } else if (name == "like" || name == "like-current") {

@@ -173,8 +173,6 @@ set(RHINE_APP_SOURCES
     Qt/src/MusicDirectory.cpp
     Qt/src/MusicAccount.cpp
     Qt/src/MusicMutation.cpp
-    Qt/src/MusicDiscover.cpp
-    Qt/src/MusicDiscover.h
     Qt/src/Platform.cpp
     Qt/src/DesktopPlaybackControls.cpp
     Qt/src/DesktopPlaybackControls.h

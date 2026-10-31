@@ -8,16 +8,7 @@ MusicApi::MusicApi(Host *host, QObject *parent) : QObject(parent), m_host(host) 
 }
 
 QString MusicApi::providerName(const QString &provider) {
-    if (provider == "local") {
-        return QStringLiteral("本地音乐");
-    }
-    if (provider == "qq") {
-        return QStringLiteral("QQ 音乐");
-    }
-    if (provider == "kugou") {
-        return QStringLiteral("酷狗音乐");
-    }
-    return QStringLiteral("网易云音乐");
+    return QStringLiteral("本地音乐");
 }
 
 QJsonObject MusicApi::safeFailure(const QJsonObject &body, bool includePrevious) {

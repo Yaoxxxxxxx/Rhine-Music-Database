@@ -71,11 +71,11 @@ void platformPlay(const QString &id, bool activate, std::function<void(QString)>
     info.lpFile = reinterpret_cast<LPCWSTR>(url.utf16());
     info.nShow = activate ? SW_SHOWNORMAL : SW_SHOWNOACTIVATE;
     if (ShellExecuteExW(&info)) {
-        done(QStringLiteral("已交给网易云；若冷启动未切歌，可手动重试"));
+        done(QStringLiteral("已交给系统音乐应用；若冷启动未切歌，可手动重试"));
     } else if (GetLastError() == ERROR_NO_ASSOCIATION) {
-        done(QStringLiteral("未安装或未注册网易云音乐客户端，请安装官方客户端后重试"));
+        done(QStringLiteral("未安装或未注册音乐客户端，请安装官方客户端后重试"));
     } else {
-        done(QStringLiteral("交付失败：无法启动网易云客户端"));
+        done(QStringLiteral("交付失败：无法启动音乐客户端"));
     }
 }
 

@@ -6,8 +6,6 @@
 #include <array>
 #include <memory>
 
-class MusicDiscover;
-
 struct MusicDirectory {
     std::shared_ptr<MusicDirectory> parent;
     QJsonObject item;
@@ -106,7 +104,6 @@ class MusicLibrary : public QObject {
     void playlistForm(QString kind, QString name, QString id = {}, Completion done = {});
     void playlistTrack(QString id, QJsonObject value = {}, bool remove = false, Completion done = {});
     void enterDirectory(QJsonObject value);
-    bool openDaily();
     void loadArtistAlbums();
     void openSongArtist(int index = 0);
     void observeDirectory(int physical);
@@ -121,7 +118,6 @@ class MusicLibrary : public QObject {
     Host *host;
     MusicApi api;
     MusicPlayer player;
-    std::unique_ptr<MusicDiscover> discover;
     std::array<QJsonArray, 5> lists;
     std::array<int, 5> totals{};
     std::array<int, 5> offsets{};

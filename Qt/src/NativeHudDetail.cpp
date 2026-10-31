@@ -208,10 +208,6 @@ void NativeHud::detail(double width, double opacity) {
         hit(x, 786, usable, std::min(3, int(lines.size()) - bodyOffset) * 31, "detail:copy",
             "点击复制完整内容");
     }
-    if (PlatformFeatures::OfficialPlayback && !music.isLocal()) {
-        actionButton(music.provider != "netease" ? music.providerName() + " ↗" : "官方客户端 ↗", x, 910,
-                     buttonWidth, "music:official");
-    }
     if (music.provider == "qq") {
         actionButton("试听片段", x + buttonWidth + gap, 910, buttonWidth, "music:preview");
     }

@@ -13,9 +13,6 @@ struct Provider {
 };
 const QVector<Provider> providers = [] {
     QVector<Provider> values{
-        {"netease", "网易云音乐", "NETEASE", "搜索 · 个人音乐 · 推荐 · 播放 · 歌单编辑"},
-        {"qq", "QQ 音乐", "QQ MUSIC", "全类搜索 · 每日推荐 · 个人音乐 · 歌单编辑"},
-        {"kugou", "酷狗音乐", "KUGOU", "标准版 / 概念版 · 个人歌单 · 推荐与榜单 · 播放"},
         {"local", "本地音乐", "LOCAL", "文件夹管理 · 导入与索引 · 本地检索 · 播放"},
     };
     if (!PlatformFeatures::LocalMusic) {
@@ -69,7 +66,7 @@ QString modalSubtitle(const QString &modal, const MusicLibrary &music) {
         return "我的音乐 / " + music.nickname;
     }
     if (modal == "login") {
-        return music.provider == "kugou" ? "使用对应版本酷狗 App 扫码；搜索与个人音乐需要登录"
+        return music.provider == "kugou" ? "使用对应版本 App 扫码；搜索与个人音乐需要登录"
                                          : "可选登录，公开搜索不需要账号";
     }
     return subtitles.value(modal, "音乐检索");
@@ -145,8 +142,8 @@ void NativeHud::modalDraw(double width) {
              dark ? QJsonArray{0.15, 0.15, 0.15, 1, "calibratedWhite"} : QJsonArray{0.929, 0.922, 0.894, 1});
         hits = {};
         m_modalControls = true;
-        const QStringList sources{"auto", "local", "netease", "qq", "kugou"};
-        const QStringList labels{"自动（本地优先）", "本地歌词", "网易云音乐", "QQ 音乐", "酷狗音乐"};
+        const QStringList sources{"auto", "local"};
+        const QStringList labels{"自动（本地优先）", "本地歌词"};
         for (int index = 0; index < sources.size(); ++index) {
             const auto label =
                 (music.player.lyrics.localSource == sources[index] ? QStringLiteral("✓ ") : QString()) +
@@ -225,14 +222,10 @@ void NativeHud::modalDraw(double width) {
         limited(music.status, x + 53, y + 775, 12, usable - 106);
     } else if (modal == "local") {
         localPanel(x, y, usable);
-    } else if (modal == "discover") {
-        discoverPanel(x, y, usable);
     } else if (modal == "player") {
         playerPanel(x, y, usable);
     } else if (modal == "settings") {
         settings(x, y, usable);
-    } else if (modal == "login") {
-        loginPanel(x, y, usable);
     } else {
         libraryPanel(x, y, usable);
     }
@@ -275,13 +268,8 @@ void NativeHud::platformPanel(double x, double y, double width) {
     text("PROVIDER ACCESS / 音乐平台", x + 53, y + 222, 13, "demibold");
     platformChoices(x + 53, y + 258, width - 106, true);
     rule(x + 53, y + 490, width - 106, 0.2);
-    text("切换平台会停止当前播放，各平台账号与个人音乐独立保存。", x + 53, y + 520, 15);
-    text("网易云与 QQ 支持歌单编辑；酷狗支持读取与播放。", x + 53, y + 558, 15);
-    if (m_music->isLocal()) {
-        button("文件夹管理 ＋", x + 53, y + 660, 330, 48, "discover", 16);
-    } else {
-        button("账号登录 / " + m_music->providerName(), x + 53, y + 660, 330, 48, "music:login", 16);
-    }
+    text("本地版仅提供本地音乐来源；账号与在线平台功能已移除。", x + 53, y + 520, 15);
+    button("文件夹管理 ＋", x + 53, y + 660, 330, 48, "discover", 16);
 }
 namespace {
 struct QualityDescription {
@@ -673,18 +661,8 @@ void NativeHud::settings(double x, double y, double width) {
     fill(left, y + 224, usable, 66, tint);
     text("当前平台 / " + music.providerName(), left + 16, y + 247, 18, "demibold");
     button("切换平台 ▾", left + usable - 280, y + 235, 264, 44, "provider", 16);
-    if (music.isLocal()) {
-        button("文件夹管理 / 导入与索引", left, y + 308, 340, 44, "discover", 16);
-    } else {
-        button(music.uid.isEmpty() ? "登录 / " + music.providerName() : "退出登录 / " + music.nickname, left,
-               y + 308, 340, 44, music.uid.isEmpty() ? "music:login" : "music:logout", 16);
-    }
-    const QHash<QString, QString> memberships{
-        {"free", "免费账号"}, {"green", "绿钻会员"}, {"super", "超级会员"}, {"unknown", "会员状态未知"}};
-    const auto accountNote = music.provider == "qq" && !music.uid.isEmpty()
-                                 ? memberships.value(music.vipLevel, "会员状态未知")
-                                 : QString("各平台账号独立保存");
-    limited(accountNote, left + 365, y + 322, 15, usable - 365);
+    button("文件夹管理 / 导入与索引", left, y + 308, 340, 44, "discover", 16);
+    limited(QStringLiteral("本地曲库独立保存，无需登录"), left + 365, y + 322, 15, usable - 365);
     rule(left, y + 376, usable, 0.2);
     text("TERMINAL PREFERENCES / 终端偏好", left, y + 392, 16, "demibold");
     // 下拉块绘制：标题行整行可点，右侧显示当前值与箭头；展开后在行下列出全部选项。
@@ -835,9 +813,6 @@ void NativeHud::settings(double x, double y, double width) {
     rule(left, y + projectTop - 20, usable, 0.2);
     text("PROJECT / 项目与开源参考", left, y + projectTop, 16, "demibold");
     const QVector<QPair<QString, QString>> links{{"本项目 / Rhine Music Database ↗", "project-home"},
-                                                 {"网易云音乐 API / api-enhanced ↗", "project-author"},
-                                                 {"QQ 音乐 API / qq-music-api ↗", "project-player"},
-                                                 {"酷狗音乐 API / KuGouMusicApi ↗", "project-kugou"},
                                                  {"界面原项目 / RhineLabUI ↗", "project-rhine"},
                                                  {"歌词参考 / LyricsX ↗", "project-lyricsx"},
                                                  {"格式移植 / LyricsKit ↗", "project-lyricskit"},

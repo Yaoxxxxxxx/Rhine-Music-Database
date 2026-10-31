@@ -1,6 +1,5 @@
 #include "MusicLibrary.h"
 #include "MusicData.h"
-#include "MusicDiscover.h"
 #include <QJsonDocument>
 #include <QPointer>
 #include <QUrl>
@@ -54,7 +53,6 @@ MusicLibrary::MusicLibrary(Host *host, const QJsonObject &content, QObject *pare
             searchHistory.append(value.toString());
         }
     }
-    discover = std::make_unique<MusicDiscover>(this);
     // 播放进度与歌词通知只刷新可见播放界面，不作废资源库场景。
     connect(&player, &MusicPlayer::changed, this, [this] {
         if (isLocal() && current.value("key") == player.current.value("key") &&
@@ -85,7 +83,7 @@ void MusicLibrary::changed() {
 
 QString MusicLibrary::providerName() const {
     if (provider == "kugou" && kugouEdition == "lite") {
-        return QStringLiteral("酷狗概念版");
+        return QStringLiteral("本地曲库");
     }
     return MusicApi::providerName(provider);
 }
@@ -509,7 +507,7 @@ void MusicLibrary::showSource(int lane) {
         return;
     }
     if (provider == "kugou" && lane == 4) {
-        status = QStringLiteral("酷狗 API 未提供收藏专辑，此栏目已禁用");
+        status = QStringLiteral("此栏目在本地版不可用");
         changed();
         return;
     }
@@ -691,7 +689,7 @@ void MusicLibrary::loadMoreSource(int lane) {
     }
     if (provider == "kugou" && lane == 4) {
         hasMore[4] = false;
-        status = QStringLiteral("酷狗 API 未提供收藏专辑，此栏目已禁用");
+        status = QStringLiteral("此栏目在本地版不可用");
         changed();
         return;
     }

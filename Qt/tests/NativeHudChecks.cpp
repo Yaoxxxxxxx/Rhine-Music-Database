@@ -1,6 +1,5 @@
 #include "NativeHud.h"
 #include "MusicData.h"
-#include "MusicDiscover.h"
 #include <QCoreApplication>
 #include <QElapsedTimer>
 #include <QThread>
@@ -76,9 +75,6 @@ MusicLibrary *createTestMusicLibrary(Host *host, const QString &provider, const 
     music->player.status = "原生播放器";
     music->player.quality = "exhigh";
     music->player.alternative = false;
-    music->discover->items = songs;
-    music->discover->status = "本地发现";
-    music->discover->more = true;
     return music;
 }
 }
@@ -401,8 +397,7 @@ bool runNativeHudChecks(const QString &root, Glyphs &glyphs) {
             }
 #endif
 
-            const QStringList projectActions{"project-home",      "project-author",  "project-player",
-                                             "project-kugou",     "project-rhine",   "project-lyricsx",
+            const QStringList projectActions{"project-home", "project-rhine",   "project-lyricsx",
                                              "project-lyricskit", "project-lyrimuse"};
             // 链接应可滚动到达；列数、按钮高度和间距属于可调整的视觉设计。
             for (const auto &action : projectActions) {
@@ -527,24 +522,11 @@ bool runNativeHudChecks(const QString &root, Glyphs &glyphs) {
             }
 
             // === 测试 6: 其他关键面板存在性检查 ===
-            const QStringList criticalPanels = {"search", "login", "player", "confirm"};
+            // 本地版登录面板已随在线功能移除，openModal("login") 被控制器拦截。
+            const QStringList criticalPanels = {"search", "player", "confirm"};
             for (const auto &panel : criticalPanels) {
                 hud.openModal(panel);
                 hud.draw(archiveFrame, 1920, 50);
-
-                if (panel == "login" && provider == "netease") {
-                    if (!hasAction(hud.hits, "music:login-method:phone") ||
-                        hasAction(hud.hits, "music:login-method:email")) {
-                        qCritical() << "NetEase login must offer SMS without email password";
-                        ok = false;
-                    }
-                    hud.action("music:login-method:phone");
-                    hud.action("music:login-method:email");
-                    if (music->loginMethod != "phone") {
-                        qCritical() << "Disabled email login action was accepted";
-                        ok = false;
-                    }
-                }
 
                 if (hud.commands.isEmpty()) {
                     qCritical() << "Panel commands empty:" << panel << provider << (dark ? "dark" : "light");
@@ -555,43 +537,6 @@ bool runNativeHudChecks(const QString &root, Glyphs &glyphs) {
                                 << (dark ? "dark" : "light");
                     ok = false;
                 }
-            }
-
-            // === 测试 7: 每日推荐资料库入口 ===
-            music->discover->tab = "daily";
-            hud.openModal("discover");
-            hud.draw(archiveFrame, 1920, 50);
-            if (!hasAction(hud.hits, "discover:open")) {
-                qCritical() << provider << "daily discover missing library button"
-                            << (dark ? "dark" : "light");
-                ok = false;
-            }
-            hud.action("discover:open");
-            if (!music->directory || music->directory->songs.size() != music->discover->items.size()) {
-                qCritical() << provider << "daily discover did not open as playlist directory"
-                            << (dark ? "dark" : "light");
-                ok = false;
-            }
-            music->leaveDirectory(false);
-
-            // === 测试 8: 分类歌单列表选择 ===
-            music->discover->tab = "categories";
-            music->discover->category = "1";
-            music->discover->categories = QJsonArray{
-                QJsonObject{{"id", "1"}, {"name", "甲"}},
-                QJsonObject{{"id", "2"}, {"name", "乙"}},
-            };
-            hud.openModal("discover");
-            hud.draw(archiveFrame, 1920, 50);
-            if (!hasAction(hud.hits, "discover:categories")) {
-                qCritical() << provider << "category selector missing" << (dark ? "dark" : "light");
-                ok = false;
-            }
-            hud.action("discover:categories");
-            hud.draw(archiveFrame, 1920, 50);
-            if (!hasAction(hud.hits, "discover:category:1") || !hasAction(hud.hits, "discover:category:2")) {
-                qCritical() << provider << "category list missing choices" << (dark ? "dark" : "light");
-                ok = false;
             }
 
             delete music;

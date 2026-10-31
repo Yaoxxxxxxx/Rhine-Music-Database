@@ -1,5 +1,4 @@
 #include "MusicLibrary.h"
-#include "MusicDiscover.h"
 #include <QDateTime>
 #include <QPointer>
 #include <QRegularExpression>
@@ -12,7 +11,7 @@ QString loginFailureMessage(const QJsonObject &details) {
     const auto upstreamError = primary["upstreamErrorKey"].toString(failure["upstreamErrorKey"].toString());
     if (failure["upstreamCode"].toInt() == 20279 || primary["upstreamCode"].toInt() == 20279 ||
         upstreamError == "auth.device-limit") {
-        return QStringLiteral("登录设备数量已达上限，请在 QQ 音乐设备管理中删除无用设备");
+        return QStringLiteral("登录设备数量已达上限，请在设备管理中删除无用设备");
     }
     if (primary["upstreamCode"].toInt() == 50006) {
         return QStringLiteral("请使用手机 QQ 扫描手机 QQ 通道二维码，再尝试登录");
@@ -22,9 +21,9 @@ QString loginFailureMessage(const QJsonObject &details) {
         return QStringLiteral("QQ 登录操作过于频繁，请等待冷却后重试");
     }
     const QHash<QString, QString> messages{
-        {"auth.account-restricted", "账号当前受限，请在 QQ 音乐客户端检查"},
+        {"auth.account-restricted", "账号当前受限，请在音乐客户端检查"},
         {"auth.account-banned", "QQ 返回账号被封禁，请在官方客户端核实"},
-        {"auth.account-binding", "账号绑定状态异常，请在 QQ 音乐客户端检查"},
+        {"auth.account-binding", "账号绑定状态异常，请在音乐客户端检查"},
     };
     if (messages.contains(upstreamError)) {
         return messages.value(upstreamError);
@@ -202,7 +201,6 @@ void MusicLibrary::switchProvider(QString source, QString edition, Completion do
     ++m_directoryGeneration;
     ++m_wikiGeneration;
     ++m_suggestGeneration;
-    discover->cancel();
     player.stop();
     local->cancel();
     emit musicClearRequested();
@@ -644,7 +642,6 @@ void MusicLibrary::logout() {
     subscriptions.clear();
     subscriptionStates.clear();
     vipLevel = "unknown";
-    discover->cancel();
     player.stop();
     player.clearHistory();
     host->setPreference("play-history", "[]");

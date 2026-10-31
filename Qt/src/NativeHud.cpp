@@ -296,11 +296,7 @@ double NativeHud::navigationLeft(double width) {
 }
 void NativeHud::navigation(double width) {
     const auto x = navigationLeft(width) + 210;
-    if (m_music->isLocal()) {
-        control("文件夹管理 ＋", x - 210, 118, 184, "discover");
-    } else {
-        control("发现音乐 ↗", x - 210, 118, 184, "discover");
-    }
+    control("文件夹管理 ＋", x - 210, 118, 184, "discover");
     control("音乐检索  /", x, 118, 184, "search");
     control(m_music->isLocal() ? "本地曲库" : "＋ 我的音乐", x + 200, 118, 184, "saved");
     control("设置", x + 400, 118, 120, "settings");
@@ -338,11 +334,6 @@ void NativeHud::empty(double width) {
         title = music.sourceLoading() ? QStringLiteral("正在同步音乐资料…") : music.libraryName();
         label = "查看我的音乐 →";
         action = "saved";
-        if (!music.isLocal() && music.uid.isEmpty() && !music.restoringAccount) {
-            title = "登录后查看";
-            label = "登录" + music.providerName() + " →";
-            action = "music:login";
-        }
     }
     limited(title, x, 509, 28, width - x - 59, "bold");
     rule(x, 601, width - x - 59);

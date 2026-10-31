@@ -1,5 +1,4 @@
 #include "NativeHud.h"
-#include "MusicDiscover.h"
 #include <algorithm>
 #include <cmath>
 
@@ -34,10 +33,6 @@ void NativeHud::wheel(double x, double y, double delta, std::optional<int> steps
     if (!modal.isEmpty()) {
         if (modal == "playlist-picker") {
             listOffset = std::clamp(listOffset + step, 0, std::max(0, int(music.lists[2].size()) - 7));
-            return;
-        }
-        if (modal == "discover") {
-            listOffset = std::clamp(listOffset + step, 0, std::max(0, int(music.discover->items.size()) - 6));
             return;
         }
         if (modal == "player") {
