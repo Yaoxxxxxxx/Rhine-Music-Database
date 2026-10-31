@@ -334,6 +334,15 @@ void NativeHud::empty(double width) {
         title = music.sourceLoading() ? QStringLiteral("正在同步音乐资料…") : music.libraryName();
         label = "查看我的音乐 →";
         action = "saved";
+    } else if (music.isLocal() && music.local && music.local->songs().isEmpty() && !music.local->busy) {
+        // T10：空库首屏给导入引导，两个动作与本地面板一致（local:folder / local:files）。
+        limited(QStringLiteral("本地音乐库还是空的"), x, 509, 28, width - x - 59, "bold");
+        rule(x, 601, width - x - 59);
+        text("导入音乐文件夹或文件建立索引；只建索引，音乐文件保留在原位置。", x, 624, 16);
+        button("＋ 导入文件夹", x, 703, 210, 32, "local:folder", 14);
+        button("导入文件", x + 230, 703, 140, 32, "local:files", 14);
+        button("打开文件夹管理 →", x, 751, 300, 32, "discover", 14);
+        return;
     }
     limited(title, x, 509, 28, width - x - 59, "bold");
     rule(x, 601, width - x - 59);

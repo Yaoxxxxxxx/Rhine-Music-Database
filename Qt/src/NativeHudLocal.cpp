@@ -37,7 +37,7 @@ void NativeHud::localPanel(double x, double y, double width) {
         text("只建立索引，音乐文件保留在原位置。", left, y + 405, 16);
     }
     limited(local.status, left, y + 682, 13, usable);
-    text("本地标签与封面优先；缺失歌词或封面时自动匹配。", left, y + 718, 12);
+    text("本地标签优先；歌词可用同名 .lrc 侧车文件或手动导入。", left, y + 718, 12);
     button("浏览全部歌曲 →", left, y + 767, 230, 40, "local:browse", 15);
     if (listOffset > 0) {
         button("上一页", left + usable - 215, y + 767, 100, 40, "local:prev", 13);

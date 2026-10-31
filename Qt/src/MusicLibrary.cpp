@@ -130,12 +130,9 @@ QString MusicLibrary::accountKey() const {
     return provider == "kugou" ? "kugou-" + kugouEdition : provider;
 }
 
+// T10：本地版欢迎名不读三方凭据昵称，首屏身份区一律按未登录形态渲染；
+// 存量机器上残留的 welcome-name-* 偏好不再上屏。
 QString MusicLibrary::identityName() const {
-    for (const auto &source : {"netease", "qq", "kugou"}) {
-        if (!identityNames.value(source).isEmpty()) {
-            return identityNames.value(source);
-        }
-    }
     return {};
 }
 
