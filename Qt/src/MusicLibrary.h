@@ -207,6 +207,7 @@ class MusicLibrary : public QObject {
     quint64 m_selectionGeneration = 0;
     quint64 m_accountGeneration = 0;
     quint64 m_directoryGeneration = 0;
+    QString m_followedKey;
     quint64 m_wikiGeneration = 0;
     quint64 m_suggestGeneration = 0;
     quint64 m_subscriptionGeneration = 0;

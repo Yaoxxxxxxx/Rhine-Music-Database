@@ -371,6 +371,14 @@ void MusicLibrary::leaveDirectory(bool restore) {
 
 /** 切歌沿用原物理选中与取出顺序，队列外曲目建立可返回的播放队列目录。 */
 void MusicLibrary::followPlayback(QJsonObject value) {
+    // 只跟随「播放曲目真正变化」：服务快照会把同曲的选择回灌成 trackSelected
+    // （返回上一级等导航会触发 selectionRequested→新快照），若不拦住，用户刚
+    // 离开播放曲目所在文件夹就会被立刻拽回去，表现为返回按钮“点不动”（T-021）。
+    const auto followedKey = value.value("key").toString() + '|' + value.value("id").toString();
+    if (!value.isEmpty() && followedKey == m_followedKey) {
+        return;
+    }
+    m_followedKey = followedKey;
     if (current.value("key") == value["key"] && current.value("id") == value["id"]) {
         return;
     }
