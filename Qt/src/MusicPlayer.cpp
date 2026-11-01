@@ -543,6 +543,31 @@ void MusicPlayer::next(int direction, bool ended) {
         play(current, std::nullopt, index);
         return;
     }
+    // 文件夹循环：只在当前曲目所在文件夹对应的队列连续区间内环绕；本地曲库的
+    // 队列按目录分组，非本地曲目（无 path）没有文件夹信息，落回下方列表循环行为。
+    if (mode == "folder") {
+        const auto folder = QFileInfo(queue.at(index).toObject()["path"].toString()).absolutePath();
+        if (!folder.isEmpty()) {
+            int start = index, end = index + 1;
+            while (start > 0 &&
+                   QFileInfo(queue.at(start - 1).toObject()["path"].toString()).absolutePath() == folder) {
+                --start;
+            }
+            while (end < queue.size() &&
+                   QFileInfo(queue.at(end).toObject()["path"].toString()).absolutePath() == folder) {
+                ++end;
+            }
+            auto selected = index + direction;
+            if (selected < start) {
+                selected = end - 1;
+            }
+            if (selected >= end) {
+                selected = start;
+            }
+            play(queue.at(selected).toObject(), std::nullopt, selected);
+            return;
+        }
+    }
     auto selected = index + direction;
     if (mode == "shuffle" && queue.size() > 1) {
         selected = (index + 1 + QRandomGenerator::global()->bounded(int(queue.size() - 1))) % queue.size();
@@ -624,7 +649,7 @@ void MusicPlayer::setMode(const QString &value) {
     if (remoteCommand("mode", {{"value", value}})) {
         return;
     }
-    if (QStringList{"off", "all", "one", "shuffle"}.contains(value)) {
+    if (QStringList{"off", "all", "one", "folder", "shuffle"}.contains(value)) {
         mode = value;
         emit changed();
     }
@@ -734,7 +759,7 @@ void MusicPlayer::restoreSessionState(const QJsonObject &saved) {
         return;
     }
     const auto savedMode = saved["mode"].toString();
-    mode = QStringList{"all", "one", "off", "shuffle"}.contains(savedMode) ? savedMode : "all";
+    mode = QStringList{"all", "one", "folder", "off", "shuffle"}.contains(savedMode) ? savedMode : "all";
     const auto track = saved["current"].toObject();
     auto source = saved["queue"].toArray();
     if (track.isEmpty()) {

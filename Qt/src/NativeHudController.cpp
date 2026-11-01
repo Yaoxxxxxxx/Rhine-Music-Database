@@ -329,7 +329,7 @@ void NativeHud::playerAction(const QStringList &parts) {
     } else if (name == "volume" || name == "volume-fraction") {
         player.volume(name == "volume" ? value / 10 : value);
     } else if (name == "mode") {
-        player.setMode(cycle({"off", "all", "one", "shuffle"}, player.mode));
+        player.setMode(cycle({"off", "all", "one", "folder", "shuffle"}, player.mode));
     } else if (name == "queue") {
         if (index >= 0 && index < player.queue.size()) {
             player.play(player.queue.at(index).toObject(), std::nullopt, index);

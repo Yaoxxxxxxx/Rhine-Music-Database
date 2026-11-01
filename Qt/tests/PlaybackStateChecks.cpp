@@ -141,6 +141,28 @@ bool runStateChecks(const QString &root) {
                     player.current == player.queue.at(player.index).toObject(),
                 "shuffle picks a different queue entry consistently");
 
+    // 文件夹循环：夹底回夹首、夹顶回夹尾，不越出当前文件夹（T-021）。
+    const auto subWav = audioDir.filePath("sub/b.wav");
+    ok &= check(writeWav(subWav), "create sub-folder fixture");
+    auto folderTrack = [&](const QString &id, const QString &wavPath) {
+        auto value = track(id, wavPath);
+        value["path"] = wavPath;
+        return value;
+    };
+    QJsonArray folderQueue;
+    folderQueue.append(folderTrack("a", audioDir.filePath("a.wav")));
+    folderQueue.append(folderTrack("b2", subWav));
+    folderQueue.append(folderTrack("c", audioDir.filePath("c.wav")));
+    player.play(folderTrack("b2", subWav), folderQueue);
+    player.setMode("folder");
+    ok &= check(player.mode == "folder" && player.index == 1, "folder mode accepted and queue selected");
+    player.next(1, true);
+    ok &= check(player.index == 1 && player.current["id"].toString() == "b2",
+                "folder loop wraps to the folder start at its end");
+    player.next(-1);
+    ok &= check(player.index == 1 && player.current["id"].toString() == "b2",
+                "folder loop wraps to the folder end at its start");
+
     // 重启不漂移：会话存档交给全新播放器恢复（restoreSessionState 无返回值，以恢复结果断言），
     // 当前曲目、队列、重复模式逐一比对；恢复失败会直接表现为这里不等。
     const auto saved = player.sessionState();
