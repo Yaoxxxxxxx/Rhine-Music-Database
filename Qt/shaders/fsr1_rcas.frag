@@ -81,8 +81,7 @@ void main() {
     vec3 hitMax = (peakC.x - mx4) / min(4.0 * mn4 + peakC.y, vec3(-1e-8));
     vec3 lobe = max(-hitMin, hitMax);
     // 取三通道最强的负瓣，限制在 [-FSR_RCAS_LIMIT, 0]，再乘锐度。
-    lobe = max(vec3(-FSR_RCAS_LIMIT), min(vec3(max(max(lobe.r, lobe.g), lobe.b)), vec3(0.0))) *
-           uCon0.x;
+    lobe = max(vec3(-FSR_RCAS_LIMIT), min(vec3(max(max(lobe.r, lobe.g), lobe.b)), vec3(0.0))) * uCon0.x;
 #ifdef FSR_RCAS_DENOISE
     // 按噪声检测结果减弱锐化。
     lobe *= nz;

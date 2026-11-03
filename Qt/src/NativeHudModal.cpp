@@ -157,9 +157,8 @@ void NativeHud::modalDraw(double width) {
         const QStringList encodingLabels{"UTF-8", "GBK", "Big5", "Shift-JIS"};
         const auto currentEncoding = music.player.lyrics.localEncodingFor(music.player.current);
         for (int index = 0; index < encodings.size(); ++index) {
-            const auto label =
-                (currentEncoding == encodings[index] ? QStringLiteral("✓ ") : QString()) +
-                encodingLabels[index];
+            const auto label = (currentEncoding == encodings[index] ? QStringLiteral("✓ ") : QString()) +
+                               encodingLabels[index];
             button(label, bounds.x() + 10, bounds.y() + 53 + (sources.size() + 1 + index) * 42,
                    bounds.width() - 20, 42, "player:lyrics-encoding:" + encodings[index], 15);
         }

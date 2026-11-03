@@ -11,8 +11,7 @@
 #include <QtGlobal>
 #include <algorithm>
 
-bool LinuxGpuDevice::usable() const
-{
+bool LinuxGpuDevice::usable() const {
     // vendor 为 0 说明没读出 PCI 供应商（simpledrm、虚拟显示等）：
     // 这种条目既没有可用的选择手段，也不该占掉一个序号。
     return vendor != 0 && !pciAddress.isEmpty();
@@ -21,15 +20,13 @@ bool LinuxGpuDevice::usable() const
 namespace {
 /// sysfs 的规范 PCI 地址（0000:01:00.0）。用 \A..\z 而不是 ^..$：PCRE 的 $ 允许结尾多一个换行，
 /// 那样刚从文件里读出来的 "0000:01:00.0\n" 会被当成合法值。
-const QRegularExpression &pciPattern()
-{
+const QRegularExpression &pciPattern() {
     static const QRegularExpression pattern(
         QStringLiteral("\\A[0-9a-f]{4}:[0-9a-f]{2}:[0-9a-f]{2}\\.[0-7]\\z"));
     return pattern;
 }
 
-QString readTrimmed(const QString &path)
-{
+QString readTrimmed(const QString &path) {
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly)) {
         return {};
@@ -38,15 +35,13 @@ QString readTrimmed(const QString &path)
 }
 
 /// 取符号链接目标的名字：card0/device → "0000:01:00.0"，card0/device/driver → "nvidia"。
-QString linkTargetName(const QString &path)
-{
+QString linkTargetName(const QString &path) {
     const auto target = QFileInfo(path).symLinkTarget();
     return target.isEmpty() ? QString() : QFileInfo(target).fileName();
 }
 } // namespace
 
-QVector<LinuxGpuDevice> RhineLinuxGpu::enumerateDevices(const QString &drmRoot)
-{
+QVector<LinuxGpuDevice> RhineLinuxGpu::enumerateDevices(const QString &drmRoot) {
     const QDir root(drmRoot);
     if (!root.exists()) {
         return {};
@@ -84,8 +79,7 @@ QVector<LinuxGpuDevice> RhineLinuxGpu::enumerateDevices(const QString &drmRoot)
     return devices;
 }
 
-bool RhineLinuxGpu::nvidiaIcdInstalled(const QString &icdRoot)
-{
+bool RhineLinuxGpu::nvidiaIcdInstalled(const QString &icdRoot) {
     const QDir root(icdRoot);
     if (!root.exists()) {
         return false;
@@ -94,8 +88,7 @@ bool RhineLinuxGpu::nvidiaIcdInstalled(const QString &icdRoot)
     return !root.entryList({QStringLiteral("*nvidia*.json")}, QDir::Files).isEmpty();
 }
 
-QString RhineLinuxGpu::pciPrimeSelector(const QString &pciAddress)
-{
+QString RhineLinuxGpu::pciPrimeSelector(const QString &pciAddress) {
     if (!pciPattern().match(pciAddress).hasMatch()) {
         return {};
     }
@@ -107,8 +100,7 @@ QString RhineLinuxGpu::pciPrimeSelector(const QString &pciAddress)
 }
 
 QVector<QPair<QString, QString>> RhineLinuxGpu::planEnvironment(const QVector<LinuxGpuDevice> &devices,
-                                                               int index, bool nvidiaIcd, QString *reason)
-{
+                                                                int index, bool nvidiaIcd, QString *reason) {
     const auto refuse = [reason](const QString &why) {
         if (reason) {
             *reason = why;
@@ -127,8 +119,9 @@ QVector<QPair<QString, QString>> RhineLinuxGpu::planEnvironment(const QVector<Li
     }
     const auto selector = pciPrimeSelector(device.pciAddress);
     if (selector.isEmpty()) {
-        return refuse(
-            QStringLiteral("GPU %1 reports an unexpected PCI address \"%2\"").arg(index).arg(device.pciAddress));
+        return refuse(QStringLiteral("GPU %1 reports an unexpected PCI address \"%2\"")
+                          .arg(index)
+                          .arg(device.pciAddress));
     }
 
     QVector<QPair<QString, QString>> environment;
@@ -150,8 +143,7 @@ QVector<QPair<QString, QString>> RhineLinuxGpu::planEnvironment(const QVector<Li
     return environment;
 }
 
-void initializeLinuxGraphics()
-{
+void initializeLinuxGraphics() {
 #if defined(Q_OS_LINUX)
     if (qEnvironmentVariableIntValue("RHINE_SOFTWARE_GPU") == 1) {
         // 与 Windows 侧一致：用户点名要软件渲染时，不要替他挑卡。

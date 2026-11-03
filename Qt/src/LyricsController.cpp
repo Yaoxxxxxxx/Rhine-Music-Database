@@ -245,10 +245,8 @@ void LyricsController::load(const QJsonObject &track, bool retry) {
     positionMs = position;
     if (track["provider"] == "local") {
         // 本地版：缺省不再在线匹配；存量 netease/qq/kugou 选择一律按 local 处理。
-        const auto stored =
-            m_localSources.value(track["id"].toString()).toString(QStringLiteral("local"));
-        localSource = QStringList{"auto", "local"}.contains(stored) ? stored
-                                                                    : QStringLiteral("local");
+        const auto stored = m_localSources.value(track["id"].toString()).toString(QStringLiteral("local"));
+        localSource = QStringList{"auto", "local"}.contains(stored) ? stored : QStringLiteral("local");
         auto pending = std::make_shared<Load>();
         pending->generation = m_generation;
         pending->track = track;
@@ -490,8 +488,7 @@ void LyricsController::loadLocal(const QJsonObject &track, const Pending &pendin
     }
     if (sidecarBytes.isEmpty()) {
         // T6 手动导入：映射表按音频绝对路径（小写归一）指向外部 .lrc。
-        const auto imported =
-            m_importedLyrics.value(audio.absoluteFilePath().toLower()).toString();
+        const auto imported = m_importedLyrics.value(audio.absoluteFilePath().toLower()).toString();
         if (!imported.isEmpty()) {
             QFile importedFile(imported);
             if (importedFile.open(QIODevice::ReadOnly) && importedFile.size() <= 1000000) {
@@ -542,9 +539,8 @@ void LyricsController::loadLocal(const QJsonObject &track, const Pending &pendin
     if (pending->needsLyrics && localSource == "local") {
         pending->needsLyrics = false;
         status = "empty";
-        message = localEncoding.isEmpty()
-                      ? QStringLiteral("没有可读取的本地歌词")
-                      : QStringLiteral("歌词解码失败，请另存为 UTF-8 后重试");
+        message = localEncoding.isEmpty() ? QStringLiteral("没有可读取的本地歌词")
+                                          : QStringLiteral("歌词解码失败，请另存为 UTF-8 后重试");
         emit changed();
     }
     if (pending->needsLyrics) {

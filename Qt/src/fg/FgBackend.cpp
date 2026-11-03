@@ -37,8 +37,7 @@ constexpr int kOpticalFlowBlockSize = 8;
  * 不需要额外链 Vulkan。同时 vkGetDeviceProcAddr 对未启用的扩展返回空指针，
  * 正好可以当"设备有没有开 VK_KHR_swapchain"的探测手段。
  */
-struct VkFns
-{
+struct VkFns {
     PFN_vkGetDeviceProcAddr getDeviceProcAddr = nullptr;
     PFN_vkDeviceWaitIdle deviceWaitIdle = nullptr;
     PFN_vkCreateImage createImage = nullptr;
@@ -54,29 +53,28 @@ struct VkFns
 /// 自己持有的裸 VkImage。FG 的内部资源（共享面、光流输出）不经过 QRhi：
 /// 它们的格式里 R16G16_SINT 在 QRhiTexture 里没有对应项，混用两套生命周期
 /// 反而更容易在 resize 时漏释放。
-struct RawImage
-{
+struct RawImage {
     VkImage image = VK_NULL_HANDLE;
     VkDeviceMemory memory = VK_NULL_HANDLE;
     VkFormat format = VK_FORMAT_UNDEFINED;
     VkExtent2D extent{};
 
-    bool valid() const { return image != VK_NULL_HANDLE; }
+    bool valid() const {
+        return image != VK_NULL_HANDLE;
+    }
 };
 
-void fgMessage(uint32_t type, const wchar_t *message)
-{
+void fgMessage(uint32_t type, const wchar_t *message) {
     const QString text = message ? QString::fromWCharArray(message) : QStringLiteral("(no message)");
-    if (type == FFX_MESSAGE_TYPE_ERROR)
+    if (type == FFX_MESSAGE_TYPE_ERROR) {
         qWarning().noquote() << "FG error:" << text;
-    else
+    } else {
         qInfo().noquote() << "FG:" << text;
+    }
 }
 
-VkFormat toVkFormat(QRhiTexture::Format format)
-{
-    switch (format)
-    {
+VkFormat toVkFormat(QRhiTexture::Format format) {
+    switch (format) {
     case QRhiTexture::RGBA8:
         return VK_FORMAT_R8G8B8A8_UNORM;
     case QRhiTexture::BGRA8:
@@ -102,10 +100,8 @@ VkFormat toVkFormat(QRhiTexture::Format format)
     }
 }
 
-FfxSurfaceFormat toFfxFormat(QRhiTexture::Format format)
-{
-    switch (format)
-    {
+FfxSurfaceFormat toFfxFormat(QRhiTexture::Format format) {
+    switch (format) {
     case QRhiTexture::RGBA8:
         return FFX_SURFACE_FORMAT_R8G8B8A8_UNORM;
     case QRhiTexture::BGRA8:
@@ -125,10 +121,8 @@ FfxSurfaceFormat toFfxFormat(QRhiTexture::Format format)
 
 /// FfxCreateResourceDescription 里的格式是 SDK 的枚举，这里翻回 Vulkan 格式，
 /// 用于按 SDK 给的尺寸/格式分配共享资源——比自己抄一遍常量更不容易写错。
-VkFormat toVkFormat(FfxSurfaceFormat format)
-{
-    switch (format)
-    {
+VkFormat toVkFormat(FfxSurfaceFormat format) {
+    switch (format) {
     case FFX_SURFACE_FORMAT_R32_FLOAT:
         return VK_FORMAT_R32_SFLOAT;
     case FFX_SURFACE_FORMAT_R16G16_FLOAT:
@@ -160,10 +154,8 @@ VkFormat toVkFormat(FfxSurfaceFormat format)
 ///
 /// layout 为 0（QRhi 还没跟踪过这张纹理）时退回 COMMON：COMMON 不满足任何目标状态，
 /// 屏障一定会发，代价只是多几次转换，功能仍然正确。
-FfxResourceStates currentVkState(QRhiTexture *texture)
-{
-    switch (texture->nativeTexture().layout)
-    {
+FfxResourceStates currentVkState(QRhiTexture *texture) {
+    switch (texture->nativeTexture().layout) {
     case VK_IMAGE_LAYOUT_GENERAL:
         return FFX_RESOURCE_STATE_UNORDERED_ACCESS;
     case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
@@ -187,10 +179,8 @@ FfxResourceStates currentVkState(QRhiTexture *texture)
 /// 动态资源屏障回它声明的初始状态，所以 effect 结束后资源的真实布局就是这个映射的
 /// 结果。QRhi 的布局跟踪必须按同一张表还原，否则下一次 QRhi 采样会从错误的旧布局
 /// 起手，少发一次必要的转换。
-VkImageLayout layoutForFfxState(FfxResourceStates state)
-{
-    switch (state)
-    {
+VkImageLayout layoutForFfxState(FfxResourceStates state) {
+    switch (state) {
     case FFX_RESOURCE_STATE_COMPUTE_READ:
     case FFX_RESOURCE_STATE_PIXEL_READ:
     case FFX_RESOURCE_STATE_PIXEL_COMPUTE_READ:
@@ -221,15 +211,16 @@ VkImageLayout layoutForFfxState(FfxResourceStates state)
 /// storage 参数保留给"语义上确实会被写、但 usage 里没标 UAV"的场景（当前没有调用点），
 /// 默认 false：只有显式声明 FFX_RESOURCE_USAGE_UAV 的资源才加 STORAGE_BIT。
 FfxResource wrapTexture(QRhiTexture *texture, FfxResourceUsage usage, const wchar_t *name,
-                        FfxResourceStates state, bool storage = false)
-{
-    if (!texture)
+                        FfxResourceStates state, bool storage = false) {
+    if (!texture) {
         return {};
+    }
 
     const QRhiTexture::NativeTexture native = texture->nativeTexture();
     const VkImage image = reinterpret_cast<VkImage>(quintptr(native.object));
-    if (image == VK_NULL_HANDLE)
+    if (image == VK_NULL_HANDLE) {
         return {};
+    }
 
     VkImageCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -241,12 +232,15 @@ FfxResource wrapTexture(QRhiTexture *texture, FfxResourceUsage usage, const wcha
     info.samples = VK_SAMPLE_COUNT_1_BIT;
     info.tiling = VK_IMAGE_TILING_OPTIMAL;
     VkImageUsageFlags vkUsage = VK_IMAGE_USAGE_SAMPLED_BIT;
-    if (storage || (usage & FFX_RESOURCE_USAGE_UAV))
+    if (storage || (usage & FFX_RESOURCE_USAGE_UAV)) {
         vkUsage |= VK_IMAGE_USAGE_STORAGE_BIT;
-    if (usage & FFX_RESOURCE_USAGE_DEPTHTARGET)
+    }
+    if (usage & FFX_RESOURCE_USAGE_DEPTHTARGET) {
         vkUsage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-    if (usage & FFX_RESOURCE_USAGE_RENDERTARGET)
+    }
+    if (usage & FFX_RESOURCE_USAGE_RENDERTARGET) {
         vkUsage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    }
     info.usage = vkUsage;
     info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -256,10 +250,10 @@ FfxResource wrapTexture(QRhiTexture *texture, FfxResourceUsage usage, const wcha
 }
 
 FfxResource wrapRawImage(const RawImage &raw, FfxResourceUsage usage, const wchar_t *name,
-                         FfxResourceStates state)
-{
-    if (!raw.valid())
+                         FfxResourceStates state) {
+    if (!raw.valid()) {
         return {};
+    }
 
     VkImageCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -278,35 +272,35 @@ FfxResource wrapRawImage(const RawImage &raw, FfxResourceUsage usage, const wcha
     return ffxGetResourceVK(reinterpret_cast<void *>(raw.image), description, name, state);
 }
 
-quint32 findDeviceLocalMemoryType(const VkPhysicalDeviceMemoryProperties &props, quint32 typeBits)
-{
-    for (quint32 i = 0; i < props.memoryTypeCount; ++i)
-    {
-        if ((typeBits & (1u << i)) == 0)
+quint32 findDeviceLocalMemoryType(const VkPhysicalDeviceMemoryProperties &props, quint32 typeBits) {
+    for (quint32 i = 0; i < props.memoryTypeCount; ++i) {
+        if ((typeBits & (1u << i)) == 0) {
             continue;
-        if ((props.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0)
+        }
+        if ((props.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0) {
             return i;
+        }
     }
     return UINT32_MAX;
 }
 
-void destroyRawImage(VkDevice device, const VkFns &fns, RawImage *image)
-{
-    if (!image)
+void destroyRawImage(VkDevice device, const VkFns &fns, RawImage *image) {
+    if (!image) {
         return;
-    if (image->image != VK_NULL_HANDLE && fns.destroyImage)
+    }
+    if (image->image != VK_NULL_HANDLE && fns.destroyImage) {
         fns.destroyImage(device, image->image, nullptr);
-    if (image->memory != VK_NULL_HANDLE && fns.freeMemory)
+    }
+    if (image->memory != VK_NULL_HANDLE && fns.freeMemory) {
         fns.freeMemory(device, image->memory, nullptr);
+    }
     *image = RawImage{};
 }
 
 bool createRawImage(VkDevice device, const VkFns &fns,
                     const VkPhysicalDeviceMemoryProperties &memoryProperties, VkFormat format,
-                    VkExtent2D extent, const char *what, RawImage *out, QString *error)
-{
-    if (format == VK_FORMAT_UNDEFINED || extent.width == 0 || extent.height == 0)
-    {
+                    VkExtent2D extent, const char *what, RawImage *out, QString *error) {
+    if (format == VK_FORMAT_UNDEFINED || extent.width == 0 || extent.height == 0) {
         *error = QStringLiteral("FG: %1 的格式或尺寸无效").arg(QString::fromLatin1(what));
         return false;
     }
@@ -322,8 +316,8 @@ bool createRawImage(VkDevice device, const VkFns &fns,
     info.tiling = VK_IMAGE_TILING_OPTIMAL;
     // STORAGE 是 FG 写 UAV 的前提；SAMPLED 供后续 pass 读；TRANSFER 让调用方
     // 可以直接拷进/拷出，不必再走一遍中间纹理。
-    info.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT
-                 | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    info.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
+                 VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
@@ -332,19 +326,16 @@ bool createRawImage(VkDevice device, const VkFns &fns,
     result.extent = extent;
 
     VkResult vk = fns.createImage(device, &info, nullptr, &result.image);
-    if (vk != VK_SUCCESS)
-    {
-        *error = QStringLiteral("FG: 创建 %1 的 VkImage 失败（%2）")
-                     .arg(QString::fromLatin1(what))
-                     .arg(int(vk));
+    if (vk != VK_SUCCESS) {
+        *error =
+            QStringLiteral("FG: 创建 %1 的 VkImage 失败（%2）").arg(QString::fromLatin1(what)).arg(int(vk));
         return false;
     }
 
     VkMemoryRequirements requirements{};
     fns.getImageMemoryRequirements(device, result.image, &requirements);
     const quint32 typeIndex = findDeviceLocalMemoryType(memoryProperties, requirements.memoryTypeBits);
-    if (typeIndex == UINT32_MAX)
-    {
+    if (typeIndex == UINT32_MAX) {
         *error = QStringLiteral("FG: %1 找不到 DEVICE_LOCAL 显存类型").arg(QString::fromLatin1(what));
         destroyRawImage(device, fns, &result);
         return false;
@@ -355,21 +346,15 @@ bool createRawImage(VkDevice device, const VkFns &fns,
     allocation.allocationSize = requirements.size;
     allocation.memoryTypeIndex = typeIndex;
     vk = fns.allocateMemory(device, &allocation, nullptr, &result.memory);
-    if (vk != VK_SUCCESS)
-    {
-        *error = QStringLiteral("FG: 为 %1 分配显存失败（%2）")
-                     .arg(QString::fromLatin1(what))
-                     .arg(int(vk));
+    if (vk != VK_SUCCESS) {
+        *error = QStringLiteral("FG: 为 %1 分配显存失败（%2）").arg(QString::fromLatin1(what)).arg(int(vk));
         destroyRawImage(device, fns, &result);
         return false;
     }
 
     vk = fns.bindImageMemory(device, result.image, result.memory, 0);
-    if (vk != VK_SUCCESS)
-    {
-        *error = QStringLiteral("FG: 绑定 %1 的显存失败（%2）")
-                     .arg(QString::fromLatin1(what))
-                     .arg(int(vk));
+    if (vk != VK_SUCCESS) {
+        *error = QStringLiteral("FG: 绑定 %1 的显存失败（%2）").arg(QString::fromLatin1(what)).arg(int(vk));
         destroyRawImage(device, fns, &result);
         return false;
     }
@@ -386,13 +371,12 @@ bool createRawImage(VkDevice device, const VkFns &fns,
 /// KHR 与核心版本的签名、结构体定义完全相同，所以把别名指向核心名字即可。
 PFN_vkGetDeviceProcAddr g_fgRealGetDeviceProcAddr = nullptr;
 
-PFN_vkVoidFunction fgGetDeviceProcAddr(VkDevice device, const char *name)
-{
-    if (!g_fgRealGetDeviceProcAddr)
+PFN_vkVoidFunction fgGetDeviceProcAddr(VkDevice device, const char *name) {
+    if (!g_fgRealGetDeviceProcAddr) {
         return nullptr;
+    }
     // 只映射设备级函数：实例级函数不该经 vkGetDeviceProcAddr 取，映射了也不会生效。
-    static const struct
-    {
+    static const struct {
         const char *alias;
         const char *core;
     } kAliases[] = {
@@ -404,10 +388,8 @@ PFN_vkVoidFunction fgGetDeviceProcAddr(VkDevice device, const char *name)
         {"vkWaitSemaphoresKHR", "vkWaitSemaphores"},
         {"vkSignalSemaphoreKHR", "vkSignalSemaphore"},
     };
-    for (const auto &mapping : kAliases)
-    {
-        if (std::strcmp(name, mapping.alias) == 0)
-        {
+    for (const auto &mapping : kAliases) {
+        if (std::strcmp(name, mapping.alias) == 0) {
             name = mapping.core;
             break;
         }
@@ -415,56 +397,47 @@ PFN_vkVoidFunction fgGetDeviceProcAddr(VkDevice device, const char *name)
     return g_fgRealGetDeviceProcAddr(device, name);
 }
 
-bool loadVkFns(const QRhiVulkanNativeHandles *handles, VkFns *fns, QString *error)
-{
-    if (!handles || handles->dev == VK_NULL_HANDLE || !handles->inst)
-    {
+bool loadVkFns(const QRhiVulkanNativeHandles *handles, VkFns *fns, QString *error) {
+    if (!handles || handles->dev == VK_NULL_HANDLE || !handles->inst) {
         *error = QStringLiteral("FG: QRhi 没有提供 Vulkan 设备/实例句柄");
         return false;
     }
 
     const auto gipa = handles->inst->getInstanceProcAddr("vkGetDeviceProcAddr");
-    if (!gipa)
-    {
+    if (!gipa) {
         *error = QStringLiteral("FG: 取不到 vkGetDeviceProcAddr");
         return false;
     }
     fns->getDeviceProcAddr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(gipa);
 
-    auto loadDevice = [&](const char *name) {
-        return fns->getDeviceProcAddr(handles->dev, name);
-    };
+    auto loadDevice = [&](const char *name) { return fns->getDeviceProcAddr(handles->dev, name); };
 
     fns->deviceWaitIdle = reinterpret_cast<PFN_vkDeviceWaitIdle>(loadDevice("vkDeviceWaitIdle"));
     fns->createImage = reinterpret_cast<PFN_vkCreateImage>(loadDevice("vkCreateImage"));
     fns->destroyImage = reinterpret_cast<PFN_vkDestroyImage>(loadDevice("vkDestroyImage"));
-    fns->getImageMemoryRequirements = reinterpret_cast<PFN_vkGetImageMemoryRequirements>(
-        loadDevice("vkGetImageMemoryRequirements"));
+    fns->getImageMemoryRequirements =
+        reinterpret_cast<PFN_vkGetImageMemoryRequirements>(loadDevice("vkGetImageMemoryRequirements"));
     fns->allocateMemory = reinterpret_cast<PFN_vkAllocateMemory>(loadDevice("vkAllocateMemory"));
     fns->freeMemory = reinterpret_cast<PFN_vkFreeMemory>(loadDevice("vkFreeMemory"));
     fns->bindImageMemory = reinterpret_cast<PFN_vkBindImageMemory>(loadDevice("vkBindImageMemory"));
-    fns->cmdPipelineBarrier = reinterpret_cast<PFN_vkCmdPipelineBarrier>(
-        loadDevice("vkCmdPipelineBarrier"));
+    fns->cmdPipelineBarrier = reinterpret_cast<PFN_vkCmdPipelineBarrier>(loadDevice("vkCmdPipelineBarrier"));
     fns->getPhysicalDeviceMemoryProperties = reinterpret_cast<PFN_vkGetPhysicalDeviceMemoryProperties>(
         handles->inst->getInstanceProcAddr("vkGetPhysicalDeviceMemoryProperties"));
 
-    if (!fns->deviceWaitIdle || !fns->createImage || !fns->destroyImage
-        || !fns->getImageMemoryRequirements || !fns->allocateMemory || !fns->freeMemory
-        || !fns->bindImageMemory || !fns->cmdPipelineBarrier
-        || !fns->getPhysicalDeviceMemoryProperties)
-    {
+    if (!fns->deviceWaitIdle || !fns->createImage || !fns->destroyImage || !fns->getImageMemoryRequirements ||
+        !fns->allocateMemory || !fns->freeMemory || !fns->bindImageMemory || !fns->cmdPipelineBarrier ||
+        !fns->getPhysicalDeviceMemoryProperties) {
         *error = QStringLiteral("FG: Vulkan 核心函数表不完整，设备可能不是由标准 loader 创建的");
         return false;
     }
     return true;
 }
 
-#endif  // RHINE_FSR3_VULKAN
+#endif // RHINE_FSR3_VULKAN
 
-}  // namespace
+} // namespace
 
-struct FgBackend::Private
-{
+struct FgBackend::Private {
     QRhi *rhi = nullptr;
     QSize renderSize;
     QSize displaySize;
@@ -530,15 +503,14 @@ struct FgBackend::Private
 #endif
 };
 
-FgBackend::FgBackend() : d(new Private) {}
+FgBackend::FgBackend() : d(new Private) {
+}
 
-FgBackend::~FgBackend()
-{
+FgBackend::~FgBackend() {
     release();
 }
 
-bool FgBackend::compiledIn()
-{
+bool FgBackend::compiledIn() {
 #if defined(RHINE_FSR3_VULKAN)
     return true;
 #else
@@ -546,10 +518,10 @@ bool FgBackend::compiledIn()
 #endif
 }
 
-bool FgBackend::supported(QRhi *rhi)
-{
-    if (!rhi)
+bool FgBackend::supported(QRhi *rhi) {
+    if (!rhi) {
         return false;
+    }
 #if defined(RHINE_FSR3_VULKAN)
     return rhi->backend() == QRhi::Vulkan;
 #else
@@ -557,14 +529,11 @@ bool FgBackend::supported(QRhi *rhi)
 #endif
 }
 
-bool FgBackend::available() const
-{
+bool FgBackend::available() const {
     return d->ready;
 }
 
-bool FgBackend::resize(QRhi *rhi, QSize renderSize, QSize displaySize,
-                       QRhiTexture::Format colorFormat)
-{
+bool FgBackend::resize(QRhi *rhi, QSize renderSize, QSize displaySize, QRhiTexture::Format colorFormat) {
 #if !defined(RHINE_FSR3_VULKAN)
     Q_UNUSED(rhi)
     Q_UNUSED(renderSize)
@@ -575,56 +544,53 @@ bool FgBackend::resize(QRhi *rhi, QSize renderSize, QSize displaySize,
 #else
     d->error.clear();
 
-    if (!supported(rhi))
-    {
+    if (!supported(rhi)) {
         d->error = QStringLiteral("FG: 只支持 Vulkan 后端");
         return false;
     }
-    if (!renderSize.isValid() || !displaySize.isValid())
-    {
+    if (!renderSize.isValid() || !displaySize.isValid()) {
         d->error = QStringLiteral("FG: 渲染/显示尺寸无效");
         return false;
     }
-    if (renderSize.width() > 16384 || renderSize.height() > 16384
-        || displaySize.width() > 16384 || displaySize.height() > 16384)
-    {
+    if (renderSize.width() > 16384 || renderSize.height() > 16384 || displaySize.width() > 16384 ||
+        displaySize.height() > 16384) {
         d->error = QStringLiteral("FG: 尺寸超出 FG 支持范围");
         return false;
     }
     // OF 内部会按 1/2 到 1/64 建金字塔（ffx_opticalflow.cpp:302-308），
     // 显示尺寸小于 64 时最后一层会算出 0 宽高，vkCreateImage 直接失败。
-    if (displaySize.width() < 64 || displaySize.height() < 64)
-    {
+    if (displaySize.width() < 64 || displaySize.height() < 64) {
         d->error = QStringLiteral("FG: 显示尺寸太小（至少 64x64）");
         return false;
     }
-    if (toFfxFormat(colorFormat) == FFX_SURFACE_FORMAT_UNKNOWN)
-    {
+    if (toFfxFormat(colorFormat) == FFX_SURFACE_FORMAT_UNKNOWN) {
         d->error = QStringLiteral("FG: 不支持的 backbuffer 格式");
         return false;
     }
 
-    if (d->ready && d->rhi == rhi && d->renderSize == renderSize && d->displaySize == displaySize
-        && d->colorFormat == colorFormat)
+    if (d->ready && d->rhi == rhi && d->renderSize == renderSize && d->displaySize == displaySize &&
+        d->colorFormat == colorFormat) {
         return true;
+    }
 
     // 重建会释放 GPU 资源，必须先等 GPU 空闲；resize 本来就不在帧内，这里多等
     // 一次比留下悬空资源安全。
-    if (d->device != VK_NULL_HANDLE && d->fns.deviceWaitIdle)
+    if (d->device != VK_NULL_HANDLE && d->fns.deviceWaitIdle) {
         d->fns.deviceWaitIdle(d->device);
+    }
     release();
 
     const auto *handles = static_cast<const QRhiVulkanNativeHandles *>(rhi->nativeHandles());
-    if (!handles || handles->dev == VK_NULL_HANDLE || handles->physDev == VK_NULL_HANDLE)
-    {
+    if (!handles || handles->dev == VK_NULL_HANDLE || handles->physDev == VK_NULL_HANDLE) {
         d->error = QStringLiteral("FG: QRhi 没有提供 Vulkan 原生句柄");
         return false;
     }
 
     d->device = handles->dev;
     d->physicalDevice = handles->physDev;
-    if (!loadVkFns(handles, &d->fns, &d->error))
+    if (!loadVkFns(handles, &d->fns, &d->error)) {
         return false;
+    }
 
     d->fns.getPhysicalDeviceMemoryProperties(d->physicalDevice, &d->memoryProperties);
 
@@ -638,31 +604,27 @@ bool FgBackend::resize(QRhi *rhi, QSize renderSize, QSize displaySize,
     // ffxGetDeviceVK 把这份上下文拷进后端的一个静态变量，所以两个 effect 共用
     // 同一个 FfxDevice 就够了；它不接管设备生命周期。
     d->ffxDevice = ffxGetDeviceVK(&deviceContext);
-    if (!d->ffxDevice)
-    {
+    if (!d->ffxDevice) {
         d->error = QStringLiteral("FG: ffxGetDeviceVK 失败");
         return false;
     }
 
     const size_t scratchSize = ffxGetScratchMemorySizeVK(handles->physDev, 1);
-    if (scratchSize == 0)
-    {
+    if (scratchSize == 0) {
         d->error = QStringLiteral("FG: ffxGetScratchMemorySizeVK 返回 0");
         return false;
     }
     d->ofScratch.assign(scratchSize, 0);
     d->fiScratch.assign(scratchSize, 0);
 
-    if (ffxGetInterfaceVK(&d->ofInterface, d->ffxDevice, d->ofScratch.data(), d->ofScratch.size(), 1)
-        != FFX_OK)
-    {
+    if (ffxGetInterfaceVK(&d->ofInterface, d->ffxDevice, d->ofScratch.data(), d->ofScratch.size(), 1) !=
+        FFX_OK) {
         d->error = QStringLiteral("FG: 创建 OpticalFlow 后端接口失败");
         release();
         return false;
     }
-    if (ffxGetInterfaceVK(&d->fiInterface, d->ffxDevice, d->fiScratch.data(), d->fiScratch.size(), 1)
-        != FFX_OK)
-    {
+    if (ffxGetInterfaceVK(&d->fiInterface, d->ffxDevice, d->fiScratch.data(), d->fiScratch.size(), 1) !=
+        FFX_OK) {
         d->error = QStringLiteral("FG: 创建 FrameInterpolation 后端接口失败");
         release();
         return false;
@@ -677,8 +639,7 @@ bool FgBackend::resize(QRhi *rhi, QSize renderSize, QSize displaySize,
     ofDescription.backendInterface = d->ofInterface;
     ofDescription.flags = 0;
     ofDescription.resolution = {quint32(displaySize.width()), quint32(displaySize.height())};
-    if (ffxOpticalflowContextCreate(&d->ofContext, &ofDescription) != FFX_OK)
-    {
+    if (ffxOpticalflowContextCreate(&d->ofContext, &ofDescription) != FFX_OK) {
         d->error = QStringLiteral("FG: ffxOpticalflowContextCreate 失败");
         release();
         return false;
@@ -697,8 +658,7 @@ bool FgBackend::resize(QRhi *rhi, QSize renderSize, QSize displaySize,
     // 所以"上一帧插值源"用和 backbuffer 一样的格式即可。
     fiDescription.previousInterpolationSourceFormat = fiDescription.backBufferFormat;
     fiDescription.backendInterface = d->fiInterface;
-    if (ffxFrameInterpolationContextCreate(&d->fiContext, &fiDescription) != FFX_OK)
-    {
+    if (ffxFrameInterpolationContextCreate(&d->fiContext, &fiDescription) != FFX_OK) {
         d->error = QStringLiteral("FG: ffxFrameInterpolationContextCreate 失败");
         release();
         return false;
@@ -706,25 +666,27 @@ bool FgBackend::resize(QRhi *rhi, QSize renderSize, QSize displaySize,
     d->fiCreated = true;
 
     d->dispatchDebugFlags = 0;
-    if (config.drawDebugTearLines)
+    if (config.drawDebugTearLines) {
         d->dispatchDebugFlags |= FFX_FRAMEINTERPOLATION_DISPATCH_DRAW_DEBUG_TEAR_LINES;
-    if (config.drawDebugResetIndicators)
+    }
+    if (config.drawDebugResetIndicators) {
         d->dispatchDebugFlags |= FFX_FRAMEINTERPOLATION_DISPATCH_DRAW_DEBUG_RESET_INDICATORS;
-    if (config.drawDebugView)
+    }
+    if (config.drawDebugView) {
         d->dispatchDebugFlags |= FFX_FRAMEINTERPOLATION_DISPATCH_DRAW_DEBUG_VIEW;
+    }
 
     // 共享资源的格式与尺寸以 SDK 给的描述为准，不自己抄常量：
     // SDK 升级时这里会自动跟上。
     FfxFrameInterpolationSharedResourceDescriptions fiShared{};
-    if (ffxFrameInterpolationGetSharedResourceDescriptions(&d->fiContext, &fiShared) != FFX_OK)
-    {
+    if (ffxFrameInterpolationGetSharedResourceDescriptions(&d->fiContext, &fiShared) != FFX_OK) {
         d->error = QStringLiteral("FG: 取 FI 共享资源描述失败");
         release();
         return false;
     }
 
-    auto createFromDescription = [&](const FfxCreateResourceDescription &description,
-                                     const char *what, RawImage *target) {
+    auto createFromDescription = [&](const FfxCreateResourceDescription &description, const char *what,
+                                     RawImage *target) {
         const VkFormat format = toVkFormat(description.resourceDescription.format);
         const VkExtent2D extent{description.resourceDescription.width,
                                 description.resourceDescription.height};
@@ -732,28 +694,24 @@ bool FgBackend::resize(QRhi *rhi, QSize renderSize, QSize displaySize,
                               &d->error);
     };
 
-    if (!createFromDescription(fiShared.dilatedDepth, "FI dilatedDepth", &d->dilatedDepth)
-        || !createFromDescription(fiShared.dilatedMotionVectors, "FI dilatedMotionVectors",
-                                  &d->dilatedMotionVectors)
-        || !createFromDescription(fiShared.reconstructedPrevNearestDepth,
-                                  "FI reconstructedPrevNearestDepth", &d->reconstructedPrevDepth))
-    {
+    if (!createFromDescription(fiShared.dilatedDepth, "FI dilatedDepth", &d->dilatedDepth) ||
+        !createFromDescription(fiShared.dilatedMotionVectors, "FI dilatedMotionVectors",
+                               &d->dilatedMotionVectors) ||
+        !createFromDescription(fiShared.reconstructedPrevNearestDepth, "FI reconstructedPrevNearestDepth",
+                               &d->reconstructedPrevDepth)) {
         release();
         return false;
     }
 
     FfxOpticalflowSharedResourceDescriptions ofShared{};
-    if (ffxOpticalflowGetSharedResourceDescriptions(&d->ofContext, &ofShared) != FFX_OK)
-    {
+    if (ffxOpticalflowGetSharedResourceDescriptions(&d->ofContext, &ofShared) != FFX_OK) {
         d->error = QStringLiteral("FG: 取 OpticalFlow 共享资源描述失败");
         release();
         return false;
     }
-    if (!createFromDescription(ofShared.opticalFlowVector, "OF opticalFlowVector",
-                               &d->opticalFlowVector)
-        || !createFromDescription(ofShared.opticalFlowSCD, "OF opticalFlowSCD",
-                                  &d->opticalFlowSceneChangeDetection))
-    {
+    if (!createFromDescription(ofShared.opticalFlowVector, "OF opticalFlowVector", &d->opticalFlowVector) ||
+        !createFromDescription(ofShared.opticalFlowSCD, "OF opticalFlowSCD",
+                               &d->opticalFlowSceneChangeDetection)) {
         release();
         return false;
     }
@@ -761,12 +719,10 @@ bool FgBackend::resize(QRhi *rhi, QSize renderSize, QSize displaySize,
     d->opticalFlowHeight = ofShared.opticalFlowVector.resourceDescription.height;
 
     // 输出用 QRhiTexture：调用方可以直接把它当普通纹理采样或拷贝，不必再包一层。
-    d->outputTexture.reset(rhi->newTexture(
-        colorFormat, displaySize, 1,
-        QRhiTexture::RenderTarget | QRhiTexture::UsedWithLoadStore
-            | QRhiTexture::UsedAsTransferSource));
-    if (!d->outputTexture || !d->outputTexture->create())
-    {
+    d->outputTexture.reset(rhi->newTexture(colorFormat, displaySize, 1,
+                                           QRhiTexture::RenderTarget | QRhiTexture::UsedWithLoadStore |
+                                               QRhiTexture::UsedAsTransferSource));
+    if (!d->outputTexture || !d->outputTexture->create()) {
         d->error = QStringLiteral("FG: 创建插值帧输出纹理失败");
         release();
         return false;
@@ -790,16 +746,16 @@ bool FgBackend::resize(QRhi *rhi, QSize renderSize, QSize displaySize,
 #endif
 }
 
-
-void FgBackend::release()
-{
+void FgBackend::release() {
 #if defined(RHINE_FSR3_VULKAN)
     // 先销毁 effect：它们内部还会通过后端释放自己的资源，而后端的状态全在
     // scratch 里，scratch 必须活到这一步之后。
-    if (d->fiCreated)
+    if (d->fiCreated) {
         ffxFrameInterpolationContextDestroy(&d->fiContext);
-    if (d->ofCreated)
+    }
+    if (d->ofCreated) {
         ffxOpticalflowContextDestroy(&d->ofContext);
+    }
     d->fiContext = {};
     d->ofContext = {};
     d->fiCreated = false;
@@ -833,36 +789,31 @@ void FgBackend::release()
     d->frameID = 0;
 }
 
-void FgBackend::setCamera(float nearPlane, float farPlane, float fovYRadians, float frameTimeMs)
-{
+void FgBackend::setCamera(float nearPlane, float farPlane, float fovYRadians, float frameTimeMs) {
     d->nearPlane = nearPlane > 0.0f ? nearPlane : 0.1f;
     d->farPlane = farPlane > d->nearPlane ? farPlane : d->nearPlane + 1.0f;
     d->fovY = (fovYRadians > 0.0f && fovYRadians < 3.14159265f) ? fovYRadians : 1.0f;
     d->frameTimeMs = frameTimeMs > 0.0f ? frameTimeMs : 16.6667f;
 }
 
-void FgBackend::setJitter(float x, float y)
-{
+void FgBackend::setJitter(float x, float y) {
     d->jitterX = x;
     d->jitterY = y;
 }
 
-void FgBackend::setCameraPose(const QVector3D &position, const QVector3D &up,
-                              const QVector3D &right, const QVector3D &forward)
-{
+void FgBackend::setCameraPose(const QVector3D &position, const QVector3D &up, const QVector3D &right,
+                              const QVector3D &forward) {
     d->cameraPosition = position;
     d->cameraUp = up;
     d->cameraRight = right;
     d->cameraForward = forward;
 }
 
-void FgBackend::requestReset()
-{
+void FgBackend::requestReset() {
     d->reset = true;
 }
 
-QRhiTexture *FgBackend::output() const
-{
+QRhiTexture *FgBackend::output() const {
 #if defined(RHINE_FSR3_VULKAN)
     return d->outputTexture.get();
 #else
@@ -870,29 +821,24 @@ QRhiTexture *FgBackend::output() const
 #endif
 }
 
-QSize FgBackend::renderSize() const
-{
+QSize FgBackend::renderSize() const {
     return d->renderSize;
 }
 
-QSize FgBackend::displaySize() const
-{
+QSize FgBackend::displaySize() const {
     return d->displaySize;
 }
 
-bool FgBackend::lastFrameReset() const
-{
+bool FgBackend::lastFrameReset() const {
     return d->lastFrameReset;
 }
 
-QString FgBackend::lastError() const
-{
+QString FgBackend::lastError() const {
     return d->error;
 }
 
 bool FgBackend::prepare(QRhi *rhi, QRhiCommandBuffer *commandBuffer, QRhiTexture *colorHudLess,
-                        QRhiTexture *depth, QRhiTexture *motionVectors)
-{
+                        QRhiTexture *depth, QRhiTexture *motionVectors) {
 #if !defined(RHINE_FSR3_VULKAN)
     Q_UNUSED(rhi)
     Q_UNUSED(commandBuffer)
@@ -902,69 +848,60 @@ bool FgBackend::prepare(QRhi *rhi, QRhiCommandBuffer *commandBuffer, QRhiTexture
     return false;
 #else
     d->error.clear();
-    if (!d->ready || rhi != d->rhi)
-    {
+    if (!d->ready || rhi != d->rhi) {
         d->error = QStringLiteral("FG: prepare 前没有可用的上下文");
         return false;
     }
-    if (!commandBuffer || !colorHudLess || !depth || !motionVectors)
-    {
+    if (!commandBuffer || !colorHudLess || !depth || !motionVectors) {
         d->error = QStringLiteral("FG: prepare 缺少必要输入");
         return false;
     }
-    if (colorHudLess->pixelSize() != d->displaySize)
-    {
+    if (colorHudLess->pixelSize() != d->displaySize) {
         d->error = QStringLiteral("FG: 无 HUD 颜色必须是显示分辨率");
         return false;
     }
-    if (depth->pixelSize() != d->renderSize || motionVectors->pixelSize() != d->renderSize)
-    {
+    if (depth->pixelSize() != d->renderSize || motionVectors->pixelSize() != d->renderSize) {
         d->error = QStringLiteral("FG: 深度与运动矢量必须是渲染分辨率");
         return false;
     }
 
     const auto *bufferHandles =
         static_cast<const QRhiVulkanCommandBufferNativeHandles *>(commandBuffer->nativeHandles());
-    if (!bufferHandles || bufferHandles->commandBuffer == VK_NULL_HANDLE)
-    {
+    if (!bufferHandles || bufferHandles->commandBuffer == VK_NULL_HANDLE) {
         d->error = QStringLiteral("FG: 拿不到当前 VkCommandBuffer");
         return false;
     }
     VkCommandBuffer commandList = bufferHandles->commandBuffer;
     const FfxCommandList ffxCommandList = ffxGetCommandListVK(commandList);
 
-    if (d->needsInitialTransition)
+    if (d->needsInitialTransition) {
         recordInitialTransitions(commandList);
+    }
 
-    const FfxResource colorResource =
-        wrapTexture(colorHudLess, FFX_RESOURCE_USAGE_READ_ONLY, L"Rhine.Fg.HudLessColor",
-                    currentVkState(colorHudLess));
+    const FfxResource colorResource = wrapTexture(colorHudLess, FFX_RESOURCE_USAGE_READ_ONLY,
+                                                  L"Rhine.Fg.HudLessColor", currentVkState(colorHudLess));
     const FfxResource depthResource =
-        wrapTexture(depth, FFX_RESOURCE_USAGE_DEPTHTARGET, L"Rhine.Fg.Depth",
-                    currentVkState(depth), false);
-    const FfxResource motionResource =
-        wrapTexture(motionVectors, FFX_RESOURCE_USAGE_READ_ONLY, L"Rhine.Fg.MotionVectors",
-                    currentVkState(motionVectors));
+        wrapTexture(depth, FFX_RESOURCE_USAGE_DEPTHTARGET, L"Rhine.Fg.Depth", currentVkState(depth), false);
+    const FfxResource motionResource = wrapTexture(motionVectors, FFX_RESOURCE_USAGE_READ_ONLY,
+                                                   L"Rhine.Fg.MotionVectors", currentVkState(motionVectors));
     const FfxResource dilatedDepth =
         wrapRawImage(d->dilatedDepth, FFX_RESOURCE_USAGE_UAV, L"Rhine.Fg.DilatedDepth",
                      FFX_RESOURCE_STATE_UNORDERED_ACCESS);
     const FfxResource dilatedMotion =
-        wrapRawImage(d->dilatedMotionVectors, FFX_RESOURCE_USAGE_UAV,
-                     L"Rhine.Fg.DilatedMotionVectors", FFX_RESOURCE_STATE_UNORDERED_ACCESS);
+        wrapRawImage(d->dilatedMotionVectors, FFX_RESOURCE_USAGE_UAV, L"Rhine.Fg.DilatedMotionVectors",
+                     FFX_RESOURCE_STATE_UNORDERED_ACCESS);
     const FfxResource reconstructed =
-        wrapRawImage(d->reconstructedPrevDepth, FFX_RESOURCE_USAGE_UAV,
-                     L"Rhine.Fg.ReconstructedPrevDepth", FFX_RESOURCE_STATE_UNORDERED_ACCESS);
+        wrapRawImage(d->reconstructedPrevDepth, FFX_RESOURCE_USAGE_UAV, L"Rhine.Fg.ReconstructedPrevDepth",
+                     FFX_RESOURCE_STATE_UNORDERED_ACCESS);
     const FfxResource flowVector =
         wrapRawImage(d->opticalFlowVector, FFX_RESOURCE_USAGE_UAV, L"Rhine.Fg.OpticalFlowVector",
                      FFX_RESOURCE_STATE_UNORDERED_ACCESS);
-    const FfxResource flowScd =
-        wrapRawImage(d->opticalFlowSceneChangeDetection, FFX_RESOURCE_USAGE_UAV,
-                     L"Rhine.Fg.OpticalFlowSCD", FFX_RESOURCE_STATE_UNORDERED_ACCESS);
+    const FfxResource flowScd = wrapRawImage(d->opticalFlowSceneChangeDetection, FFX_RESOURCE_USAGE_UAV,
+                                             L"Rhine.Fg.OpticalFlowSCD", FFX_RESOURCE_STATE_UNORDERED_ACCESS);
 
-    if (!colorResource.resource || !depthResource.resource || !motionResource.resource
-        || !dilatedDepth.resource || !dilatedMotion.resource || !reconstructed.resource
-        || !flowVector.resource || !flowScd.resource)
-    {
+    if (!colorResource.resource || !depthResource.resource || !motionResource.resource ||
+        !dilatedDepth.resource || !dilatedMotion.resource || !reconstructed.resource ||
+        !flowVector.resource || !flowScd.resource) {
         d->error = QStringLiteral("FG: 有纹理拿不到原生句柄，跳过这一帧");
         return false;
     }
@@ -980,8 +917,7 @@ bool FgBackend::prepare(QRhi *rhi, QRhiCommandBuffer *commandBuffer, QRhiTexture
     flow.minMaxLuminance = {0.0f, 0.0f};
 
     FfxErrorCode result = ffxOpticalflowContextDispatch(&d->ofContext, &flow);
-    if (result != FFX_OK)
-    {
+    if (result != FFX_OK) {
         d->error = QStringLiteral("FG: ffxOpticalflowContextDispatch 失败（%1）").arg(int(result));
         qWarning().noquote() << d->error;
         return false;
@@ -1020,8 +956,7 @@ bool FgBackend::prepare(QRhi *rhi, QRhiCommandBuffer *commandBuffer, QRhiTexture
     prepare.cameraForward[2] = d->cameraForward.z();
 
     result = ffxFrameInterpolationPrepare(&d->fiContext, &prepare);
-    if (result != FFX_OK)
-    {
+    if (result != FFX_OK) {
         d->error = QStringLiteral("FG: ffxFrameInterpolationPrepare 失败（%1）").arg(int(result));
         qWarning().noquote() << d->error;
         return false;
@@ -1031,8 +966,7 @@ bool FgBackend::prepare(QRhi *rhi, QRhiCommandBuffer *commandBuffer, QRhiTexture
 }
 
 bool FgBackend::dispatch(QRhi *rhi, QRhiCommandBuffer *commandBuffer, QRhiTexture *color,
-                         QRhiTexture *colorHudLess, QRhiTexture *output)
-{
+                         QRhiTexture *colorHudLess, QRhiTexture *output) {
 #if !defined(RHINE_FSR3_VULKAN)
     Q_UNUSED(rhi)
     Q_UNUSED(commandBuffer)
@@ -1042,50 +976,44 @@ bool FgBackend::dispatch(QRhi *rhi, QRhiCommandBuffer *commandBuffer, QRhiTextur
     return false;
 #else
     d->error.clear();
-    if (!d->ready || rhi != d->rhi)
-    {
+    if (!d->ready || rhi != d->rhi) {
         d->error = QStringLiteral("FG: dispatch 前没有可用的上下文");
         return false;
     }
-    if (!commandBuffer || !color)
-    {
+    if (!commandBuffer || !color) {
         d->error = QStringLiteral("FG: dispatch 缺少必要输入");
         return false;
     }
-    if (color->pixelSize() != d->displaySize)
-    {
+    if (color->pixelSize() != d->displaySize) {
         d->error = QStringLiteral("FG: 当前帧颜色必须是显示分辨率");
         return false;
     }
 
     QRhiTexture *target = output ? output : d->outputTexture.get();
-    if (!target || target->pixelSize() != d->displaySize || target->format() != d->colorFormat)
-    {
+    if (!target || target->pixelSize() != d->displaySize || target->format() != d->colorFormat) {
         d->error = QStringLiteral("FG: 输出纹理的尺寸或格式与上下文不一致");
         return false;
     }
 
     const auto *bufferHandles =
         static_cast<const QRhiVulkanCommandBufferNativeHandles *>(commandBuffer->nativeHandles());
-    if (!bufferHandles || bufferHandles->commandBuffer == VK_NULL_HANDLE)
-    {
+    if (!bufferHandles || bufferHandles->commandBuffer == VK_NULL_HANDLE) {
         d->error = QStringLiteral("FG: 拿不到当前 VkCommandBuffer");
         return false;
     }
     VkCommandBuffer commandList = bufferHandles->commandBuffer;
     const FfxCommandList ffxCommandList = ffxGetCommandListVK(commandList);
 
-    if (d->needsInitialTransition)
+    if (d->needsInitialTransition) {
         recordInitialTransitions(commandList);
+    }
 
     // HUD-less 只有在格式与上下文一致时才能用：SDK 会把它拷进
     // previousInterpolationSource，格式不同时拷贝会失败，而且只在带断言的构建里报。
     bool useHudLess = colorHudLess && colorHudLess != color;
-    if (useHudLess && (colorHudLess->pixelSize() != d->displaySize
-                       || toFfxFormat(colorHudLess->format()) != toFfxFormat(d->colorFormat)))
-    {
-        if (!d->warnedHudLess)
-        {
+    if (useHudLess && (colorHudLess->pixelSize() != d->displaySize ||
+                       toFfxFormat(colorHudLess->format()) != toFfxFormat(d->colorFormat))) {
+        if (!d->warnedHudLess) {
             qWarning().noquote() << "FG: 无 HUD 颜色的尺寸/格式与上下文不一致，退回用带 HUD 颜色插值";
             d->warnedHudLess = true;
         }
@@ -1094,10 +1022,10 @@ bool FgBackend::dispatch(QRhi *rhi, QRhiCommandBuffer *commandBuffer, QRhiTextur
 
     const FfxResource colorResource =
         wrapTexture(color, FFX_RESOURCE_USAGE_READ_ONLY, L"Rhine.Fg.Color", currentVkState(color));
-    const FfxResource hudLessResource =
-        useHudLess ? wrapTexture(colorHudLess, FFX_RESOURCE_USAGE_READ_ONLY, L"Rhine.Fg.HudLess",
-                                 currentVkState(colorHudLess))
-                   : FfxResource{};
+    const FfxResource hudLessResource = useHudLess
+                                            ? wrapTexture(colorHudLess, FFX_RESOURCE_USAGE_READ_ONLY,
+                                                          L"Rhine.Fg.HudLess", currentVkState(colorHudLess))
+                                            : FfxResource{};
     // 先记下"声明状态"：SDK 结束后会把资源还原到这个状态对应的布局，
     // 所以 QRhi 的跟踪要按它回写（见 layoutForFfxState 的注释）。
     const FfxResourceStates outputState = currentVkState(target);
@@ -1106,23 +1034,20 @@ bool FgBackend::dispatch(QRhi *rhi, QRhiCommandBuffer *commandBuffer, QRhiTextur
     const FfxResource flowVector =
         wrapRawImage(d->opticalFlowVector, FFX_RESOURCE_USAGE_READ_ONLY, L"Rhine.Fg.OpticalFlowVector",
                      FFX_RESOURCE_STATE_UNORDERED_ACCESS);
-    const FfxResource flowScd =
-        wrapRawImage(d->opticalFlowSceneChangeDetection, FFX_RESOURCE_USAGE_READ_ONLY,
-                     L"Rhine.Fg.OpticalFlowSCD", FFX_RESOURCE_STATE_UNORDERED_ACCESS);
+    const FfxResource flowScd = wrapRawImage(d->opticalFlowSceneChangeDetection, FFX_RESOURCE_USAGE_READ_ONLY,
+                                             L"Rhine.Fg.OpticalFlowSCD", FFX_RESOURCE_STATE_UNORDERED_ACCESS);
     const FfxResource dilatedDepth =
         wrapRawImage(d->dilatedDepth, FFX_RESOURCE_USAGE_READ_ONLY, L"Rhine.Fg.DilatedDepth",
                      FFX_RESOURCE_STATE_UNORDERED_ACCESS);
     const FfxResource dilatedMotion =
-        wrapRawImage(d->dilatedMotionVectors, FFX_RESOURCE_USAGE_READ_ONLY,
-                     L"Rhine.Fg.DilatedMotionVectors", FFX_RESOURCE_STATE_UNORDERED_ACCESS);
+        wrapRawImage(d->dilatedMotionVectors, FFX_RESOURCE_USAGE_READ_ONLY, L"Rhine.Fg.DilatedMotionVectors",
+                     FFX_RESOURCE_STATE_UNORDERED_ACCESS);
     const FfxResource reconstructed =
         wrapRawImage(d->reconstructedPrevDepth, FFX_RESOURCE_USAGE_READ_ONLY,
                      L"Rhine.Fg.ReconstructedPrevDepth", FFX_RESOURCE_STATE_UNORDERED_ACCESS);
 
-    if (!colorResource.resource || !outputResource.resource || !flowVector.resource
-        || !flowScd.resource || !dilatedDepth.resource || !dilatedMotion.resource
-        || !reconstructed.resource)
-    {
+    if (!colorResource.resource || !outputResource.resource || !flowVector.resource || !flowScd.resource ||
+        !dilatedDepth.resource || !dilatedMotion.resource || !reconstructed.resource) {
         d->error = QStringLiteral("FG: 有纹理拿不到原生句柄，跳过这一帧");
         return false;
     }
@@ -1135,8 +1060,7 @@ bool FgBackend::dispatch(QRhi *rhi, QRhiCommandBuffer *commandBuffer, QRhiTextur
     description.currentBackBuffer = colorResource;
     description.currentBackBuffer_HUDLess = hudLessResource;
     description.output = outputResource;
-    description.interpolationRect = {0, 0, qint32(d->displaySize.width()),
-                                     qint32(d->displaySize.height())};
+    description.interpolationRect = {0, 0, qint32(d->displaySize.width()), qint32(d->displaySize.height())};
     description.opticalFlowVector = flowVector;
     description.opticalFlowSceneChangeDetection = flowScd;
     description.opticalFlowBufferSize = {d->opticalFlowWidth, d->opticalFlowHeight};
@@ -1171,8 +1095,7 @@ bool FgBackend::dispatch(QRhi *rhi, QRhiCommandBuffer *commandBuffer, QRhiTextur
     // 跳号（SDK 会因此重置历史），也不要让两边的帧号悄悄错位。
     ++d->frameID;
 
-    if (result != FFX_OK)
-    {
+    if (result != FFX_OK) {
         d->error = QStringLiteral("FG: ffxFrameInterpolationDispatch 失败（%1）").arg(int(result));
         qWarning().noquote() << d->error;
         return false;
@@ -1190,8 +1113,7 @@ bool FgBackend::dispatch(QRhi *rhi, QRhiCommandBuffer *commandBuffer, QRhiTextur
 
 #if defined(RHINE_FSR3_VULKAN)
 
-void FgBackend::recordInitialTransitions(void *commandList)
-{
+void FgBackend::recordInitialTransitions(void *commandList) {
     const VkCommandBuffer commandBuffer = reinterpret_cast<VkCommandBuffer>(commandList);
     VkImageMemoryBarrier barriers[6]{};
     VkImage images[6] = {
@@ -1205,10 +1127,10 @@ void FgBackend::recordInitialTransitions(void *commandList)
     };
 
     quint32 count = 0;
-    for (VkImage image : images)
-    {
-        if (image == VK_NULL_HANDLE)
+    for (VkImage image : images) {
+        if (image == VK_NULL_HANDLE) {
             continue;
+        }
         VkImageMemoryBarrier &barrier = barriers[count++];
         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
         barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -1221,17 +1143,17 @@ void FgBackend::recordInitialTransitions(void *commandList)
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
     }
 
-    if (count > 0)
-    {
+    if (count > 0) {
         d->fns.cmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
-                                      | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT |
+                                      VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                   0, 0, nullptr, 0, nullptr, count, barriers);
     }
 
-    if (d->outputTexture)
+    if (d->outputTexture) {
         d->outputTexture->setNativeLayout(VK_IMAGE_LAYOUT_GENERAL);
+    }
     d->needsInitialTransition = false;
 }
 
-#endif  // RHINE_FSR3_VULKAN
+#endif // RHINE_FSR3_VULKAN

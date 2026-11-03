@@ -15,18 +15,16 @@
  * 感知是对数量级的，取平方根能在压制亮环的同时保住大部分锐度手感。
  */
 namespace RhineFsr {
-inline double sharpnessScaleForUpscale(QSize internal, QSize display)
-{
-    if (internal.isEmpty() || display.isEmpty() || internal.width() <= 0
-        || display.width() <= internal.width()) {
+inline double sharpnessScaleForUpscale(QSize internal, QSize display) {
+    if (internal.isEmpty() || display.isEmpty() || internal.width() <= 0 ||
+        display.width() <= internal.width()) {
         return 1.0;
     }
     const double ratio = double(display.width()) / double(internal.width());
     return std::clamp(1.0 / std::sqrt(ratio), 0.25, 1.0);
 }
 /** 把设置里的锐化百分比换算成当前放大倍数下的有效百分比。 */
-inline int effectiveSharpnessPercent(int percent, QSize internal, QSize display)
-{
+inline int effectiveSharpnessPercent(int percent, QSize internal, QSize display) {
     const int bounded = std::clamp(percent, 0, 100);
     const double scaled = double(bounded) * sharpnessScaleForUpscale(internal, display);
     return int(std::lround(std::clamp(scaled, 0.0, 100.0)));

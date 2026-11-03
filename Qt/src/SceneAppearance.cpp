@@ -6,7 +6,7 @@
 namespace {
 // Optical_Film 是包在唱片外的那层透明光学包裹，不能隐藏：隐藏后画面会少一层，
 // 详情页与查看封面页的玻璃包裹感也随之消失。
-const QSet<QString> hidden{"Internal_Ceramic",    "Optical_Edges", "Subsurface_Optics", "Optical_Film_Edge",
+const QSet<QString> hidden{"Internal_Ceramic",    "Optical_Edges",   "Subsurface_Optics", "Optical_Film_Edge",
                            "Amber_Optical_Inlay", "Champagne_Index", "Printed_Label"};
 // 实例化只保留构成卡片轮廓的部件。螺丝与贴片在远景卡片上不足一个像素，
 // 随 251 份实例绘制会占掉一半几何预算，因此只随焦点卡片绘制。

@@ -91,16 +91,17 @@ child.stdout.on('data', collect);
 child.stderr.on('data', collect);
 child.on('exit', (code, signal) => settle({ code, signal }));
 
-const timeout = new Promise((resolve) =>
-    setTimeout(() => resolve({ timedOut: true }), runSeconds * 1000),
-);
+const timeout = new Promise((resolve) => setTimeout(() => resolve({ timedOut: true }), runSeconds * 1000));
 
 function fail(message) {
     if (!child.killed) {
         child.kill('SIGKILL');
     }
     console.error(`FG 冒烟测试：失败——${message}`);
-    const tail = output.split('\n').filter((line) => /FG|FgHost|error|Error/.test(line)).slice(-12);
+    const tail = output
+        .split('\n')
+        .filter((line) => /FG|FgHost|error|Error/.test(line))
+        .slice(-12);
     if (tail.length) {
         console.error('相关输出：\n' + tail.join('\n'));
     }
@@ -149,8 +150,7 @@ function fail(message) {
     }
     // 深度与运动矢量是 FG 的输入：缺其中一张，SDK 只能退化成纯光流，
     // 画面看着还在动，画质却已经塌了，日志之外没有别的证据。
-    if (lastStats.includes('depth')
-        && (!lastStats.includes('depth ok') || !lastStats.includes('mv ok'))) {
+    if (lastStats.includes('depth') && (!lastStats.includes('depth ok') || !lastStats.includes('mv ok'))) {
         fail(`深度或运动矢量没有就绪：${lastStats}`);
     }
     fail(`没有观察到插值产出：${lastStats || '无统计行'}`);

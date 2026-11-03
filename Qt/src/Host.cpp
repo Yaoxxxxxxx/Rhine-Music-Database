@@ -42,8 +42,7 @@ static QString routeProvider(const QString &route) {
     return "netease";
 }
 Host::Host(QString path, bool test, QObject *parent, bool service, PlaybackConnection *connection)
-    : QObject(parent), root(path), offline(test), remote(test ? nullptr : connection),
-      playbackOnly(service) {
+    : QObject(parent), root(path), offline(test), remote(test ? nullptr : connection), playbackOnly(service) {
     if (remote) {
         connect(remote, &PlaybackConnection::diagnosticEvent, this,
                 [this](QString event, QJsonObject values) { playbackDiagnostics.record(event, values); });

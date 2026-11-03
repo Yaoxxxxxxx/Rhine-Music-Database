@@ -16,7 +16,7 @@ class QRhiTexture;
  * 每帧在命令缓冲区里调用 dispatch() 记录 FSR3 的派发。
  */
 class Fsr3Backend {
-public:
+  public:
     Fsr3Backend();
     ~Fsr3Backend();
     Fsr3Backend(const Fsr3Backend &) = delete;
@@ -52,7 +52,7 @@ public:
     bool dispatch(QRhi *rhi, QRhiCommandBuffer *commandBuffer, QRhiTexture *color, QRhiTexture *depth,
                   QRhiTexture *velocity, QRhiTexture *output);
 
-private:
+  private:
     struct Private;
     std::unique_ptr<Private> d;
 };

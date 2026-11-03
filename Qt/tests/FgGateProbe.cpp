@@ -42,19 +42,18 @@ namespace {
 constexpr int kProbeSize = 64;
 constexpr quint64 kSemaphoreTimeoutNs = 2'000'000'000ull; // 2 秒
 
-int fail(int code, const char *message)
-{
+int fail(int code, const char *message) {
     std::fprintf(stderr, "GATE: FAIL %s\n", message);
     std::fflush(stderr);
     return code;
 }
 
 /// 检查 A：把信号量注入离屏帧的提交，再用带超时的等待确认它真的被 signal。
-int probeQueueSubmitParams(QRhi *rhi, QVulkanInstance *instance)
-{
+int probeQueueSubmitParams(QRhi *rhi, QVulkanInstance *instance) {
     const auto *handles = static_cast<const QRhiVulkanNativeHandles *>(rhi->nativeHandles());
-    if (!handles || handles->dev == VK_NULL_HANDLE)
+    if (!handles || handles->dev == VK_NULL_HANDLE) {
         return fail(10, "QRhi 没有给出 VkDevice 原生句柄");
+    }
 
     std::fprintf(stderr, "PROBE: construct control/window\n");
     QQuickRenderControl control;
@@ -63,26 +62,30 @@ int probeQueueSubmitParams(QRhi *rhi, QVulkanInstance *instance)
     window.setColor(Qt::black);
     window.resize(kProbeSize, kProbeSize);
     std::fprintf(stderr, "PROBE: control initialize\n");
-    if (!control.initialize())
+    if (!control.initialize()) {
         return fail(11, "QQuickRenderControl::initialize() 失败");
-    if (control.rhi() != rhi)
+    }
+    if (control.rhi() != rhi) {
         return fail(12, "QQuickRenderControl 没有复用传入的 QRhi");
+    }
 
-    QRhiTexture *texture =
-        rhi->newTexture(QRhiTexture::RGBA8, QSize(kProbeSize, kProbeSize), 1,
-                        QRhiTexture::RenderTarget | QRhiTexture::UsedAsTransferSource);
-    if (!texture->create())
+    QRhiTexture *texture = rhi->newTexture(QRhiTexture::RGBA8, QSize(kProbeSize, kProbeSize), 1,
+                                           QRhiTexture::RenderTarget | QRhiTexture::UsedAsTransferSource);
+    if (!texture->create()) {
         return fail(13, "离屏颜色纹理创建失败");
+    }
     std::unique_ptr<QRhiTexture> textureGuard(texture);
     std::unique_ptr<QRhiTextureRenderTarget> target(
         rhi->newTextureRenderTarget({QRhiColorAttachment(texture)}));
     // 没有 render pass descriptor 的纹理渲染目标 create() 会在 Qt 内部空指针崩溃。
     QRhiRenderPassDescriptor *renderPass = target->newCompatibleRenderPassDescriptor();
-    if (!renderPass)
+    if (!renderPass) {
         return fail(14, "render pass 描述符创建失败");
+    }
     target->setRenderPassDescriptor(renderPass);
-    if (!target->create())
+    if (!target->create()) {
         return fail(14, "离屏渲染目标创建失败");
+    }
     window.setRenderTarget(QQuickRenderTarget::fromRhiRenderTarget(target.get()));
 
     std::fprintf(stderr, "PROBE: load qml\n");
@@ -97,24 +100,27 @@ Item {
 })",
                       QUrl(QStringLiteral("qrc:/fg-gate-probe.qml")));
     QObject *root = component.create();
-    if (!root)
+    if (!root) {
         return fail(15, "探针 QML 根对象创建失败");
+    }
     auto *item = qobject_cast<QQuickItem *>(root);
-    if (!item)
+    if (!item) {
         return fail(16, "探针 QML 根节点不是 Item");
+    }
     item->setParentItem(window.contentItem());
     item->setSize(QSizeF(kProbeSize, kProbeSize));
 
     QVulkanDeviceFunctions *deviceFunctions = instance->deviceFunctions(handles->dev);
-    if (!deviceFunctions)
+    if (!deviceFunctions) {
         return fail(17, "拿不到设备级 Vulkan 函数表");
+    }
 
     VkSemaphoreCreateInfo semaphoreInfo{};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
     VkSemaphore semaphore = VK_NULL_HANDLE;
-    if (deviceFunctions->vkCreateSemaphore(handles->dev, &semaphoreInfo, nullptr, &semaphore) !=
-        VK_SUCCESS)
+    if (deviceFunctions->vkCreateSemaphore(handles->dev, &semaphoreInfo, nullptr, &semaphore) != VK_SUCCESS) {
         return fail(19, "信号量创建失败");
+    }
 
     QRhiVulkanQueueSubmitParams submit{};
     submit.signalSemaphoreCount = 1;
@@ -123,8 +129,9 @@ Item {
     std::fprintf(stderr, "PROBE: render frame\n");
     control.polishItems();
     control.beginFrame();
-    if (!control.commandBuffer())
+    if (!control.commandBuffer()) {
         return fail(18, "beginFrame() 没有拿到 command buffer");
+    }
     control.sync();
     control.render();
     // 关键：在 endFrame() 之前挂上参数，让 Qt 的下一次 vkQueueSubmit 带上这个信号量。
@@ -138,8 +145,9 @@ Item {
     VkFenceCreateInfo fenceInfo{};
     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     VkFence fence = VK_NULL_HANDLE;
-    if (deviceFunctions->vkCreateFence(handles->dev, &fenceInfo, nullptr, &fence) != VK_SUCCESS)
+    if (deviceFunctions->vkCreateFence(handles->dev, &fenceInfo, nullptr, &fence) != VK_SUCCESS) {
         return fail(20, "围栏创建失败");
+    }
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -147,12 +155,11 @@ Item {
     submitInfo.pWaitSemaphores = &semaphore;
     const VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
     submitInfo.pWaitDstStageMask = &waitStage;
-    const VkResult submitted =
-        deviceFunctions->vkQueueSubmit(handles->gfxQueue, 1, &submitInfo, fence);
+    const VkResult submitted = deviceFunctions->vkQueueSubmit(handles->gfxQueue, 1, &submitInfo, fence);
     VkResult waited = VK_ERROR_UNKNOWN;
-    if (submitted == VK_SUCCESS)
-        waited = deviceFunctions->vkWaitForFences(handles->dev, 1, &fence, VK_TRUE,
-                                                  kSemaphoreTimeoutNs);
+    if (submitted == VK_SUCCESS) {
+        waited = deviceFunctions->vkWaitForFences(handles->dev, 1, &fence, VK_TRUE, kSemaphoreTimeoutNs);
+    }
     deviceFunctions->vkDestroyFence(handles->dev, fence, nullptr);
     deviceFunctions->vkDestroySemaphore(handles->dev, semaphore, nullptr);
     if (waited == VK_SUCCESS) {
@@ -169,11 +176,11 @@ Item {
 
 #if RHINE_FFX_VK_AVAILABLE
 /// 检查 B：用可见 QWindow 的 surface 在共享 device 上建交换链并 acquire/present 一次。
-int probeSwapchain(QRhi *rhi, QVulkanInstance *instance, QWindow *window)
-{
+int probeSwapchain(QRhi *rhi, QVulkanInstance *instance, QWindow *window) {
     VulkanPresenter presenter;
-    if (!VulkanPresenter::supported(rhi))
+    if (!VulkanPresenter::supported(rhi)) {
         return fail(29, "VulkanPresenter::supported() 认为当前 QRhi 不可用");
+    }
 
     const QSize extent(640, 360);
     window->resize(extent);
@@ -182,12 +189,14 @@ int probeSwapchain(QRhi *rhi, QVulkanInstance *instance, QWindow *window)
     // 只 create() 不转事件循环会拿到 VK_NULL_HANDLE。
     QElapsedTimer exposeClock;
     exposeClock.start();
-    while (!window->isExposed() && exposeClock.elapsed() < 3000)
+    while (!window->isExposed() && exposeClock.elapsed() < 3000) {
         QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
+    }
     std::fprintf(stderr, "PROBE: exposed=%d\n", int(window->isExposed()));
     const VkSurfaceKHR surface = QVulkanInstance::surfaceForWindow(window);
-    if (surface == VK_NULL_HANDLE)
+    if (surface == VK_NULL_HANDLE) {
         return fail(30, "QWindow 没有产出 VkSurfaceKHR");
+    }
 
     if (!presenter.init(rhi, surface, extent, false)) {
         std::fprintf(stderr, "GATE-B: init 失败：%s\n", qPrintable(presenter.lastError()));
@@ -206,9 +215,8 @@ int probeSwapchain(QRhi *rhi, QVulkanInstance *instance, QWindow *window)
         std::fprintf(stderr, "GATE-B: present 失败：%s\n", qPrintable(presenter.lastError()));
         return fail(33, "交换链 present 失败");
     }
-    std::printf("GATE-B: PASS 共享 device 上建链成功（%ux%u，%u 张图，格式 %d）\n",
-                unsigned(extent.width()), unsigned(extent.height()), presenter.imageCount(),
-                int(presenter.colorFormat()));
+    std::printf("GATE-B: PASS 共享 device 上建链成功（%ux%u，%u 张图，格式 %d）\n", unsigned(extent.width()),
+                unsigned(extent.height()), presenter.imageCount(), int(presenter.colorFormat()));
     presenter.release();
     Q_UNUSED(instance);
     return 0;
@@ -217,8 +225,7 @@ int probeSwapchain(QRhi *rhi, QVulkanInstance *instance, QWindow *window)
 
 } // namespace
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     std::setvbuf(stdout, nullptr, _IONBF, 0);
     std::fprintf(stderr, "PROBE: app\n");
     QGuiApplication application(argc, argv);
@@ -231,7 +238,7 @@ int main(int argc, char **argv)
     if (!instance.create()) {
         std::fprintf(stderr, "GATE: 无法创建 QVulkanInstance（%s）\n",
                      qPrintable(instance.errorCode() ? QString::number(instance.errorCode())
-                                                    : QStringLiteral("无错误码")));
+                                                     : QStringLiteral("无错误码")));
         return 10;
     }
 
@@ -248,8 +255,7 @@ int main(int argc, char **argv)
         return 11;
     }
     const auto *handles = static_cast<const QRhiVulkanNativeHandles *>(rhi->nativeHandles());
-    std::fprintf(stderr, "PROBE: handles=%p dev=%p physDev=%p queue=%p\n",
-                 static_cast<const void *>(handles),
+    std::fprintf(stderr, "PROBE: handles=%p dev=%p physDev=%p queue=%p\n", static_cast<const void *>(handles),
                  reinterpret_cast<void *>(handles ? handles->dev : VK_NULL_HANDLE),
                  reinterpret_cast<void *>(handles ? handles->physDev : VK_NULL_HANDLE),
                  reinterpret_cast<void *>(handles ? handles->gfxQueue : VK_NULL_HANDLE));
@@ -261,8 +267,9 @@ int main(int argc, char **argv)
 
     int result = 0;
     const int gateA = probeQueueSubmitParams(rhi.get(), &instance);
-    if (gateA != 0)
+    if (gateA != 0) {
         result = gateA;
+    }
 
 #if RHINE_FFX_VK_AVAILABLE
     QWindow window;
@@ -274,8 +281,9 @@ int main(int argc, char **argv)
     window.setSurfaceType(QSurface::VulkanSurface);
     window.create();
     const int gateB = probeSwapchain(rhi.get(), &instance, &window);
-    if (gateB != 0 && result == 0)
+    if (gateB != 0 && result == 0) {
         result = gateB;
+    }
     window.destroy();
 #else
     std::printf("GATE-B: SKIP 该构建没有编入 VulkanPresenter\n");

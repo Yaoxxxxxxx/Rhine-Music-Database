@@ -34,20 +34,17 @@ struct CapabilitySnapshot {
 #endif
 };
 
-inline CapabilitySnapshot &capabilityMutable()
-{
+inline CapabilitySnapshot &capabilityMutable() {
     static CapabilitySnapshot snapshot;
     return snapshot;
 }
 
-inline const CapabilitySnapshot &capability()
-{
+inline const CapabilitySnapshot &capability() {
     return capabilityMutable();
 }
 
 inline void publishCapability(bool compiledIn, bool presentLayerActive, bool interpolationAvailable,
-                              const QString &reason = QString())
-{
+                              const QString &reason = QString()) {
     auto &snapshot = capabilityMutable();
     snapshot.compiledIn = compiledIn;
     snapshot.presentLayerActive = presentLayerActive;
@@ -56,8 +53,7 @@ inline void publishCapability(bool compiledIn, bool presentLayerActive, bool int
 }
 
 /// 呈现层接管成功；插值是否可用由上一步 arm 的结果决定。
-inline void publishActive(bool interpolationAvailable)
-{
+inline void publishActive(bool interpolationAvailable) {
     publishCapability(true, true, interpolationAvailable);
 }
 
@@ -67,14 +63,12 @@ inline void publishActive(bool interpolationAvailable)
  * 呈现层常驻后，插值上下文可能在建起来之后才失败（换分辨率、驱动拒绝、FFX 报错）。
  * 这时不该把整层判死——合成照旧走，只是没有补偿帧，所以单独降级。
  */
-inline void publishInterpolationState(bool interpolationAvailable, const QString &reason = QString())
-{
+inline void publishInterpolationState(bool interpolationAvailable, const QString &reason = QString()) {
     auto &snapshot = capabilityMutable();
     publishCapability(snapshot.compiledIn, snapshot.presentLayerActive, interpolationAvailable, reason);
 }
 
-inline void publishInactive(const QString &reason)
-{
+inline void publishInactive(const QString &reason) {
     const auto compiledIn = capability().compiledIn;
     publishCapability(compiledIn, false, false, reason);
 }
@@ -99,8 +93,7 @@ struct FrameGenerationUi {
 
 inline FrameGenerationUi frameGenerationUi(bool compiledIn, bool presentLayerActive,
                                            bool interpolationAvailable, const QString &reason,
-                                           bool backendCapable, bool preferenceOn)
-{
+                                           bool backendCapable, bool preferenceOn) {
     if (!compiledIn) {
         return {false, reason.isEmpty() ? QStringLiteral("此构建未编入") : reason};
     }

@@ -112,4 +112,3 @@ void NativeHud::libraryPanel(double x, double y, double width) {
         button("加载更多 ↓", x + width - 200, y + 775, 147, 35, "music:more:" + QString::number(lane), 12);
     }
 }
-

@@ -16,8 +16,7 @@
  * 那套 near=0.1 / far=5000。FG 会用它们把设备深度反解到视空间，填错会让
  * 去遮挡掩码和运动矢量场整体偏掉——画面表现为插值帧边缘撕裂、物体轮廓拖影。
  */
-struct FgConfig
-{
+struct FgConfig {
     /// 总开关，对应 RHINE_FG=on/off。
     bool enabled = false;
 
@@ -53,23 +52,27 @@ struct FgConfig
     static FgConfig fromEnvironment();
 
     /// 只有显式打开才认为配置有效；上层拿它决定要不要创建 FgBackend。
-    bool valid() const { return enabled; }
+    bool valid() const {
+        return enabled;
+    }
 };
 
 namespace RhineFg {
 
 /// 宽松解析布尔环境变量：认不出来的值退回 fallback，而不是猜。
-inline bool parseBool(const QByteArray &raw, bool fallback)
-{
+inline bool parseBool(const QByteArray &raw, bool fallback) {
     const QByteArray value = raw.trimmed().toLower();
-    if (value.isEmpty())
+    if (value.isEmpty()) {
         return fallback;
-    if (value == "on" || value == "1" || value == "true" || value == "yes"
-        || value == "enable" || value == "enabled")
+    }
+    if (value == "on" || value == "1" || value == "true" || value == "yes" || value == "enable" ||
+        value == "enabled") {
         return true;
-    if (value == "off" || value == "0" || value == "false" || value == "no"
-        || value == "disable" || value == "disabled")
+    }
+    if (value == "off" || value == "0" || value == "false" || value == "no" || value == "disable" ||
+        value == "disabled") {
         return false;
+    }
     return fallback;
 }
 
@@ -80,15 +83,13 @@ inline bool parseBool(const QByteArray &raw, bool fallback)
  * 而设置页改的是持久化偏好。两处若不同步，表现就是"点了没反应"。
  * 抽成函数是为了能在没有 GPU 的机器上单测这条链路。
  */
-inline void applyInterpolationPreference(const QString &value)
-{
+inline void applyInterpolationPreference(const QString &value) {
     qputenv("RHINE_FG", value == QLatin1String("on") ? "on" : "off");
 }
 
-}  // namespace RhineFg
+} // namespace RhineFg
 
-inline FgConfig FgConfig::fromEnvironment()
-{
+inline FgConfig FgConfig::fromEnvironment() {
     FgConfig config;
     config.enabled = RhineFg::parseBool(qgetenv("RHINE_FG"), false);
     config.debugChecking = RhineFg::parseBool(qgetenv("RHINE_FG_DEBUG"), false);

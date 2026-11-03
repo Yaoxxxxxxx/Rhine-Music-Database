@@ -128,8 +128,11 @@ void NativeHud::playerPanel(double x, double y, double width) {
         rule(left, yy + 34, usable, 0.15);
     }
     limited(player.status, left, y + 730, 14, usable);
-    static const QHash<QString, QString> modes{
-        {"off", "顺序播放"}, {"all", "列表循环"}, {"one", "单曲循环"}, {"folder", "文件夹循环"}, {"shuffle", "随机播放"}};
+    static const QHash<QString, QString> modes{{"off", "顺序播放"},
+                                               {"all", "列表循环"},
+                                               {"one", "单曲循环"},
+                                               {"folder", "文件夹循环"},
+                                               {"shuffle", "随机播放"}};
     button(modes.value(player.mode), left, y + 761, 140, 44, "player:mode", 16);
     if (m_music->canMutate("/like")) {
         button(m_music->provider == "qq" ? "红心 / 切换" : "♡ 喜欢此曲", left + 365, y + 761, 140, 44,

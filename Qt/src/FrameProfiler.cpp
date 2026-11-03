@@ -362,10 +362,12 @@ void FrameProfiler::sample() {
         m_metrics.insert("over33ms", fg.over33);
         m_metrics.insert("over50ms", fg.over50);
         m_metrics.insert("over100ms", fg.over100);
-        if (!fg.adapterName.isEmpty())
+        if (!fg.adapterName.isEmpty()) {
             m_metrics.insert("gpuAdapter", fg.adapterName);
-        if (!fg.backendName.isEmpty())
+        }
+        if (!fg.backendName.isEmpty()) {
             m_metrics.insert("gpuBackend", fg.backendName);
+        }
     }
     m_previousSampleNs = now;
     m_previousCpuNs = process.cpuNanoseconds;
@@ -406,8 +408,8 @@ void FrameProfiler::formatMetrics() {
     // 的结构不用变，变的只是"%2"那段状态说明要讲清楚现在是不是在插值。
     QString stateLabel;
     if (!fgActive) {
-        stateLabel = shown ? (idle ? QStringLiteral("按需休眠") : QStringLiteral("活动"))
-                           : QStringLiteral("后台");
+        stateLabel =
+            shown ? (idle ? QStringLiteral("按需休眠") : QStringLiteral("活动")) : QStringLiteral("后台");
     } else if (!m_metrics.value("fgInterpolationAvailable").toBool()) {
         stateLabel = QStringLiteral("帧生成 · 仅合成");
     } else if (!m_metrics.value("fgInterpolationWanted").toBool()) {
@@ -420,8 +422,7 @@ void FrameProfiler::formatMetrics() {
         stateLabel = QStringLiteral("帧生成 · 插值中");
     }
     m_headline = QStringLiteral("%1 FPS · %2 · %3")
-                     .arg(number("qtFps"), stateLabel,
-                          m_metrics.value("fgPresentMode").toString());
+                     .arg(number("qtFps"), stateLabel, m_metrics.value("fgPresentMode").toString());
     const auto memory = residentBytes < 0 ? QStringLiteral("不可用")
                                           : QString::number(residentBytes / 1048576., 'f', 1) + " MiB";
     // 帧生成块排在最前：接管呈现后，屏幕上真正发生的是什么只有这几行说得清。
@@ -429,10 +430,10 @@ void FrameProfiler::formatMetrics() {
     if (!fgActive && RhineFg::capability().compiledIn) {
         // 没接管时也给一行：否则用户看不出"这台机器本可以插帧，只是这次走了默认路径"。
         const auto &capability = RhineFg::capability();
-        const auto note = !capability.presentLayerActive
-                              ? (capability.reason.isEmpty() ? QStringLiteral("默认呈现路径")
-                                                             : capability.reason)
-                              : QStringLiteral("暂不可用");
+        const auto note =
+            !capability.presentLayerActive
+                ? (capability.reason.isEmpty() ? QStringLiteral("默认呈现路径") : capability.reason)
+                : QStringLiteral("暂不可用");
         fgDetails = QStringLiteral("帧生成        未接管 · %1\n\n").arg(note);
     } else if (fgActive) {
         const auto ready = [this](const char *key) {
@@ -442,30 +443,30 @@ void FrameProfiler::formatMetrics() {
             const auto size = m_metrics.value(key).toSize();
             return QStringLiteral("%1×%2").arg(size.width()).arg(size.height());
         };
-        const auto millis = [&number](const char *key) {
-            return number(key, 2);
-        };
+        const auto millis = [&number](const char *key) { return number(key, 2); };
         const auto interpolationState =
             !m_metrics.value("fgInterpolationAvailable").toBool()
                 ? QStringLiteral("插值 不可用")
                 : (m_metrics.value("fgInterpolationWanted").toBool() ? QStringLiteral("插值 开")
-                                                                    : QStringLiteral("插值 关"));
+                                                                     : QStringLiteral("插值 关"));
         fgDetails =
             QStringLiteral("帧生成        %1 · %2\n呈现 / 渲染    %3 / %4 FPS · 插值 %5 FPS\n")
                 .arg(QStringLiteral("已接管"), interpolationState, number("fgPresentedFps"),
-                     number("fgRenderFps"), number("fgInterpolatedFps"))
-            + QStringLiteral("每帧耗时      取图 %1 · 场景 %2 · 光流+重建 %3 · 插值 %4 ms\n")
-                  .arg(millis("fgAcquireMs"), millis("fgSceneMs"), millis("fgPrepareMs"),
-                       millis("fgDispatchMs"))
-            + QStringLiteral("              合成 / 上屏  %1 / %2 ms\n")
-                  .arg(millis("fgCompositeMs"), millis("fgPresentMs"))
-            + QStringLiteral("交换链        %1 张 · %2 · %3 → %4 · 呈现 %5\n深度 / 运动矢量  %6 / %7\n\n")
-                  .arg(number("fgSwapchainImages", 0), m_metrics.value("fgSwapchainFormat").toString(),
-                       sizeText("fgRenderSize"), sizeText("fgDisplaySize"),
-                       m_metrics.value("fgPresentMode").toString(), ready("fgDepthReady"),
-                       ready("fgMotionVectorsReady"));
+                     number("fgRenderFps"), number("fgInterpolatedFps")) +
+            QStringLiteral("每帧耗时      取图 %1 · 场景 %2 · 光流+重建 %3 · 插值 %4 ms\n")
+                .arg(millis("fgAcquireMs"), millis("fgSceneMs"), millis("fgPrepareMs"),
+                     millis("fgDispatchMs")) +
+            QStringLiteral("              合成 / 上屏  %1 / %2 ms\n")
+                .arg(millis("fgCompositeMs"), millis("fgPresentMs")) +
+            QStringLiteral("交换链        %1 张 · %2 · %3 → %4 · 呈现 %5\n深度 / 运动矢量  %6 / %7\n\n")
+                .arg(number("fgSwapchainImages", 0), m_metrics.value("fgSwapchainFormat").toString(),
+                     sizeText("fgRenderSize"), sizeText("fgDisplaySize"),
+                     m_metrics.value("fgPresentMode").toString(), ready("fgDepthReady"),
+                     ready("fgMotionVectorsReady"));
     }
-    m_details = fgDetails + QStringLiteral("场景提交      %1 FPS\nQt 帧间隔 P50 / P95  %2 / %3 ms\n"
+    m_details =
+        fgDetails +
+        QStringLiteral("场景提交      %1 FPS\nQt 帧间隔 P50 / P95  %2 / %3 ms\n"
                        "P99 / 峰值    %4 / %5 ms\n>33 / 50 / 100 ms   %6 / %7 / %8\n"
                        "逻辑 CPU 均值 / 峰值  %9 / %10 ms\n同步 / 提交 CPU  %11 / %12 ms\n"
                        "主进程 CPU    %13%\n主进程常驻内存  %14\n"
@@ -546,8 +547,7 @@ void FrameProfiler::formatMetrics() {
     } else if (aaMode == "fsr" || aaMode == "fsr1" || aaMode == "fsr3") {
         // 引擎由渲染器写入：fsr3 = FFX 计算后端，shader = EASU/RCAS 片元实现。
         const auto engine = qEnvironmentVariable("RHINE_FSR_ENGINE");
-        aaLine += engine == "fsr3" ? QStringLiteral("（FSR3）")
-                                   : QStringLiteral("（FSR1 EASU/RCAS）");
+        aaLine += engine == "fsr3" ? QStringLiteral("（FSR3）") : QStringLiteral("（FSR1 EASU/RCAS）");
         // 档位和锐化都直接改变画面，放进监视窗方便和眼睛看到的对照。
         const auto quality = qEnvironmentVariable("RHINE_FSR_QUALITY");
         QString qualityName = QStringLiteral("原生 AA");
@@ -575,21 +575,23 @@ void FrameProfiler::formatMetrics() {
     if (aaMode == "metalfx") {
         const auto actual = m_engine->renderTelemetry.snapshot().value("implementation").toString();
         aaLine = actual == "metalfx-temporal" ? QStringLiteral("MetalFX 时域抗锯齿 / 超分")
-                                             : QStringLiteral("MetalFX 未运行（系统或设备不支持）");
+                                              : QStringLiteral("MetalFX 未运行（系统或设备不支持）");
     }
 #endif
-    const int renderScale =
-        qEnvironmentVariableIsEmpty("RHINE_RENDER_SCALE") ? 100 : qEnvironmentVariableIntValue("RHINE_RENDER_SCALE");
-    const int supersample =
-        qEnvironmentVariableIsEmpty("RHINE_SUPERSAMPLE") ? 1 : qEnvironmentVariableIntValue("RHINE_SUPERSAMPLE");
+    const int renderScale = qEnvironmentVariableIsEmpty("RHINE_RENDER_SCALE")
+                                ? 100
+                                : qEnvironmentVariableIntValue("RHINE_RENDER_SCALE");
+    const int supersample = qEnvironmentVariableIsEmpty("RHINE_SUPERSAMPLE")
+                                ? 1
+                                : qEnvironmentVariableIntValue("RHINE_SUPERSAMPLE");
     QString renderLine = QStringLiteral("渲染 %1%").arg(renderScale);
     if (supersample > 1) {
         renderLine += QStringLiteral(" · 超采样 %1x").arg(supersample);
     }
     // 这一行既有抗锯齿也有 FSR 超分，所以叫"画质模式"；与上面"渲染后端"等宽以便对齐。
-    m_details.prepend(QStringLiteral("渲染后端  %1 · GPU 设备  %2\n画质模式  %3 · %4\n")
-                          .arg(backend, adapter.isEmpty() ? QStringLiteral("未知") : adapter, aaLine,
-                               renderLine));
+    m_details.prepend(
+        QStringLiteral("渲染后端  %1 · GPU 设备  %2\n画质模式  %3 · %4\n")
+            .arg(backend, adapter.isEmpty() ? QStringLiteral("未知") : adapter, aaLine, renderLine));
 }
 
 QJsonObject FrameProfiler::environment() const {

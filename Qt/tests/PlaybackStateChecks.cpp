@@ -105,8 +105,7 @@ bool runStateChecks(const QString &root) {
                     player.queue.at(player.index + 1).toObject()["id"].toString() == "e",
                 "enqueue next inserts right after the current track");
     player.enqueue(inserted, false);
-    ok &= check(player.queue.size() == 5 &&
-                    player.queue.last().toObject()["id"].toString() == "e" &&
+    ok &= check(player.queue.size() == 5 && player.queue.last().toObject()["id"].toString() == "e" &&
                     player.queue.at(player.index + 1).toObject()["id"].toString() == "c",
                 "re-enqueue deduplicates and moves the track to the end");
     const auto sizeBeforeRemoval = player.queue.size();
@@ -188,8 +187,8 @@ bool runHistoryChecks(const QString &root) {
     // 经产品持久化入口写入历史（与播放入库同键），混入 kind 非 song 的非法行验证读回过滤。
     QJsonArray seeded;
     for (int i = 0; i < 5; ++i) {
-        seeded.append(MusicData::item("song", QStringLiteral("history-%1").arg(i), "历史曲目",
-                                      "本地歌手", "local"));
+        seeded.append(
+            MusicData::item("song", QStringLiteral("history-%1").arg(i), "历史曲目", "本地歌手", "local"));
     }
     QJsonObject invalid{{"kind", "album"}, {"id", "not-a-song"}, {"provider", "local"}};
     seeded.append(invalid);
@@ -242,7 +241,7 @@ bool runHistoryChecks(const QString &root) {
     std::fprintf(stderr, "Playback history regression: %s\n", ok ? "passed" : "FAILED");
     return ok;
 }
-}  // namespace
+} // namespace
 
 int main(int argc, char **argv) {
     qputenv("QT_MEDIA_BACKEND", "ffmpeg");

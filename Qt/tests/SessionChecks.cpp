@@ -216,8 +216,7 @@ bool runNativeSessionChecks(const QString &root, const QString &audioURL) {
             // 设备一直在时要求播放真正开始并越过恢复点；恢复途中设备消失则只
             // 校验播放意图保住了——没有输出时位置推进无法验收。
             // 本地版走本地文件直读，不再有“取地址”动作，意图以加载完成为准。
-            return !restored.music.player.loading &&
-                   (!hasOutput || state["position"].toLongLong() == 2500);
+            return !restored.music.player.loading && (!hasOutput || state["position"].toLongLong() == 2500);
         }
         return state["playing"].toBool() && state["position"].toLongLong() > 2800;
     });

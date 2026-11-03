@@ -164,8 +164,8 @@ void WindowsTaskbar::initializeToolbar() {
         return;
     }
     if (!m_taskbar) {
-        auto result = CoCreateInstance(CLSID_TaskbarList, nullptr, CLSCTX_INPROC_SERVER,
-                                      IID_PPV_ARGS(&m_taskbar));
+        auto result =
+            CoCreateInstance(CLSID_TaskbarList, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&m_taskbar));
         if (SUCCEEDED(result)) {
             result = m_taskbar->HrInit();
         }

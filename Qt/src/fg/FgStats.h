@@ -72,19 +72,16 @@ struct Stats {
     quint64 serial = 0;
 };
 
-inline Stats &statsMutable()
-{
+inline Stats &statsMutable() {
     static Stats value;
     return value;
 }
 
-inline const Stats &stats()
-{
+inline const Stats &stats() {
     return statsMutable();
 }
 
-inline void publish(const Stats &value)
-{
+inline void publish(const Stats &value) {
     auto &slot = statsMutable();
     const quint64 serial = slot.serial + 1;
     slot = value;
@@ -92,8 +89,7 @@ inline void publish(const Stats &value)
 }
 
 /// 呈现层退出或从未启动时把状态清掉，避免面板继续显示上一轮的旧数字。
-inline void clear()
-{
+inline void clear() {
     const quint64 serial = statsMutable().serial + 1;
     statsMutable() = Stats{};
     statsMutable().serial = serial;

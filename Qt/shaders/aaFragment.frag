@@ -29,8 +29,8 @@ vec3 fxaa(vec2 uv) {
     dir = clamp(dir * scale, vec2(-8.0), vec2(8.0)) * rcp;
     vec3 a = .5 * (texture(color, rtUV(uv + dir * (1.0 / 3.0 - .5))).rgb +
                    texture(color, rtUV(uv + dir * (2.0 / 3.0 - .5))).rgb);
-    vec3 b = a * .5 + .25 * (texture(color, rtUV(uv - dir * .5)).rgb +
-                             texture(color, rtUV(uv + dir * .5)).rgb);
+    vec3 b =
+        a * .5 + .25 * (texture(color, rtUV(uv - dir * .5)).rgb + texture(color, rtUV(uv + dir * .5)).rgb);
     float lb = dot(b, luma);
     return (lb < lmin || lb > lmax) ? a : b;
 }

@@ -30,25 +30,24 @@ class QRhi;
  * 把 present 推迟到下一次 acquire 之前（仍在同一线程），present 因此不在渲染
  * 关键路径上——这就是"异步 present"的安全形态。
  */
-class VulkanPresenter
-{
-public:
-    enum class AcquireResult
-    {
+class VulkanPresenter {
+  public:
+    enum class AcquireResult {
         Ok,
-        Suboptimal,  ///< 拿到图了，但交换链已不理想；调用方应尽快 resize。
-        OutOfDate,   ///< 交换链失效，需要 resize。
-        Timeout,     ///< 等不到可用图像（窗口最小化、设备丢失等）。
+        Suboptimal, ///< 拿到图了，但交换链已不理想；调用方应尽快 resize。
+        OutOfDate,  ///< 交换链失效，需要 resize。
+        Timeout,    ///< 等不到可用图像（窗口最小化、设备丢失等）。
         Error,
     };
 
-    struct Frame
-    {
+    struct Frame {
         quint32 imageIndex = 0;
         VkImage image = VK_NULL_HANDLE;
         VkImageView view = VK_NULL_HANDLE;
 
-        bool valid() const { return image != VK_NULL_HANDLE; }
+        bool valid() const {
+            return image != VK_NULL_HANDLE;
+        }
     };
 
     VulkanPresenter();
@@ -111,6 +110,6 @@ public:
     // 本身不暴露任何字段（定义在 .cpp 内）。
     struct Private;
 
-private:
+  private:
     std::unique_ptr<Private> d;
 };

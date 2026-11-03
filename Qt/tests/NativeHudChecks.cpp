@@ -366,7 +366,7 @@ bool runNativeHudChecks(const QString &root, Glyphs &glyphs) {
             }
 
             const QStringList requiredSettings{
-                "theme", "motion",        "startup-animation",  "detail-autoplay", "single-play-mode",
+                "theme",   "motion",        "startup-animation",  "detail-autoplay", "single-play-mode",
                 "quality", "disc-rotation", "performance:toggle", "replay"};
             QStringList reachableSettings = requiredSettings;
 #if defined(Q_OS_MACOS) || defined(Q_OS_WIN)
@@ -398,7 +398,7 @@ bool runNativeHudChecks(const QString &root, Glyphs &glyphs) {
             }
 #endif
 
-            const QStringList projectActions{"project-home", "project-rhine",   "project-lyricsx",
+            const QStringList projectActions{"project-home", "project-rhine", "project-lyricsx",
                                              "project-lyricskit", "project-lyrimuse"};
             // 链接应可滚动到达；列数、按钮高度和间距属于可调整的视觉设计。
             for (const auto &action : projectActions) {

@@ -19,8 +19,7 @@
  * 显示型号在这里是错的：换过卡之后型号必然变化，而序号会在启动时被判定为失效并回退，
  * 这正是用户要求的语义。
  */
-struct LinuxGpuDevice
-{
+struct LinuxGpuDevice {
     QString card;       ///< sysfs 里的名字，例如 "card0"
     QString pciAddress; ///< "0000:01:00.0"；没有 PCI 父设备的条目不会进入列表
     quint32 vendor = 0; ///< 0x10de / 0x8086 / 0x1002

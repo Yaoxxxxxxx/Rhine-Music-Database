@@ -128,13 +128,13 @@ void main() {
         // 清晰 / 磨砂：clarity 越低，霜层越厚。磨砂把镜面高光打散成宽而弱的漫反射，
         // 同时抬高不透明度，玻璃从"透亮"变成"雾面"。
         float frost = (g.viewport.w > 0.5) ? (1.0 - clamp(v_clarity, 0.0, 1.0)) : 0.0;
-        float spec = pow(max(dot(n, normalize(KEY_LIGHT + v)), 0.0), mix(90.0, 6.0, frost)) *
-                     mix(1.2, 0.30, frost);
+        float spec =
+            pow(max(dot(n, normalize(KEY_LIGHT + v)), 0.0), mix(90.0, 6.0, frost)) * mix(1.2, 0.30, frost);
         // 透明亚克力外壳：原版靠折射与厚度把整台机器包起来。这里没有折射通道，
         // 改用"掠射角几乎全反 + 轮廓亮边"来还原盒子的存在感，正视仍保持通透。
         vec3 sheen = mix(tint, vec3(1.0), 0.30) * (0.10 + 1.15 * rim);
-        vec3 clearGlass = tint * 0.06 + g.fogColor.xyz * (0.04 + 0.95 * fresnel) + vec3(spec) +
-                          sheen * 0.85 + vec3(edge * 0.55);
+        vec3 clearGlass = tint * 0.06 + g.fogColor.xyz * (0.04 + 0.95 * fresnel) + vec3(spec) + sheen * 0.85 +
+                          vec3(edge * 0.55);
         // 磨砂不是盖一层白膜：玻璃仍然透明，只是高光被打散。真正的"糊"来自
         // 背后盘面封面的模糊，所以这里只把镜面高光变宽变弱，几乎不加不透明度。
         vec3 milkyGlass = g.fogColor.xyz * 0.55 + tint * 0.45 + vec3(spec * 0.5);

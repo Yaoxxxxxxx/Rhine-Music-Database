@@ -38,8 +38,8 @@ vec3 easuLoad(ivec2 size, ivec2 p) {
 }
 
 // fsrEasuTapFloat：把偏移旋转到梯度方向、按各向异性拉伸，再乘 Lanczos2 近似权重。
-void easuTap(inout vec3 colorSum, inout float weightSum, vec2 offset, vec2 dir, vec2 len2,
-             float lob, float clp, vec3 tapColor) {
+void easuTap(inout vec3 colorSum, inout float weightSum, vec2 offset, vec2 dir, vec2 len2, float lob,
+             float clp, vec3 tapColor) {
     // 按梯度方向旋转偏移。
     vec2 r;
     r.x = offset.x * dir.x + offset.y * dir.y;
@@ -66,8 +66,8 @@ void easuTap(inout vec3 colorSum, inout float weightSum, vec2 offset, vec2 dir, 
 
 // fsrEasuSetFloat：累加一个双线性角的梯度方向和长度。
 // AMD 用编译期 bool 选角；GLSL 直接传权重，四个角各调一次。
-void easuSet(inout vec2 dir, inout float len, vec2 pp, float weight,
-             float lA, float lB, float lC, float lD, float lE) {
+void easuSet(inout vec2 dir, inout float len, vec2 pp, float weight, float lA, float lB, float lC, float lD,
+             float lE) {
     // 方向是 '+' 差分，长度取 'c' 两侧平均的绝对值。
     float dc = lD - lC;
     float cb = lC - lB;

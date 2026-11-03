@@ -10,7 +10,8 @@ set_source_files_properties(qml/Overlay.qml PROPERTIES QT_RESOURCE_ALIAS Overlay
 set_source_files_properties(qml/Static.qml PROPERTIES QT_RESOURCE_ALIAS Static.qml)
 set_source_files_properties(qml/IOSInput.qml PROPERTIES QT_RESOURCE_ALIAS IOSInput.qml)
 set_source_files_properties(qml/LocalMusicDialogs.qml PROPERTIES QT_RESOURCE_ALIAS LocalMusicDialogs.qml)
-set_source_files_properties("${CMAKE_SOURCE_DIR}/Assets/static/welcome.png" PROPERTIES QT_RESOURCE_ALIAS welcome.png)
+set_source_files_properties("${CMAKE_SOURCE_DIR}/Assets/static/welcome.png" PROPERTIES QT_RESOURCE_ALIAS
+                                                                                       welcome.png)
 qt_add_qml_module(
     RhineMusicDatabase
     URI

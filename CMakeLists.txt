@@ -653,7 +653,6 @@ add_test(NAME qt_native_hud_regression COMMAND RhineNativeHudRegression
                                                "${CMAKE_CURRENT_SOURCE_DIR}/output/resources")
 set_tests_properties(qt_native_hud_regression PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
-
 qt_add_executable(RhineLocalMusicRegression Qt/tests/LocalMusicChecks.cpp)
 target_link_libraries(RhineLocalMusicRegression PRIVATE RhineCore)
 if(MSVC)
@@ -678,21 +677,17 @@ if(MSVC)
     target_compile_options(RhinePlaybackStateRegression PRIVATE /utf-8)
 endif()
 add_test(NAME qt_playback_state_regression COMMAND RhinePlaybackStateRegression
-                                                   "${CMAKE_CURRENT_SOURCE_DIR}/output/resources"
-                                                   state)
+                                                   "${CMAKE_CURRENT_SOURCE_DIR}/output/resources" state)
 add_test(NAME qt_playback_history_regression COMMAND RhinePlaybackStateRegression
-                                                     "${CMAKE_CURRENT_SOURCE_DIR}/output/resources"
-                                                     history)
+                                                     "${CMAKE_CURRENT_SOURCE_DIR}/output/resources" history)
 set_tests_properties(qt_playback_state_regression qt_playback_history_regression
                      PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
-# T9 用例 A：真实目录回归。RHINE_REAL_MUSIC_DIR 未设置时测试程序退出 77，ctest 记 skipped；
-# 本机验收时把该环境变量指向真实音乐目录即可触发完整扫描/搜索/解码断言。
-add_test(NAME qt_local_music_real_regression COMMAND RhineLocalMusicRegression
-                                                     "${CMAKE_CURRENT_SOURCE_DIR}/output/resources"
-                                                     --real-dir)
-set_tests_properties(qt_local_music_real_regression
-                     PROPERTIES SKIP_RETURN_CODE 77 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+# T9 用例 A：真实目录回归。RHINE_REAL_MUSIC_DIR 未设置时测试程序退出 77，ctest 记 skipped； 本机验收时把该环境变量指向真实音乐目录即可触发完整扫描/搜索/解码断言。
+add_test(NAME qt_local_music_real_regression
+         COMMAND RhineLocalMusicRegression "${CMAKE_CURRENT_SOURCE_DIR}/output/resources" --real-dir)
+set_tests_properties(qt_local_music_real_regression PROPERTIES SKIP_RETURN_CODE 77 ENVIRONMENT
+                                                               "QT_QPA_PLATFORM=offscreen")
 
 # FG 闸门探针：验证「setQueueSubmitParams 对离屏帧生效」与「共享 device 上能建交换链」。 需要真实 GPU + 显示服务（或 xvfb + lavapipe），CI runner 没有
 # GPU，所以**不进默认 CTest 集合**：构建后用 `output/qt-build/RhineFgGateProbe` 手动运行，用它给出 "FG 架构成不成立"的硬结论。

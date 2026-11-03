@@ -41,8 +41,7 @@ namespace Fsr1Constants {
 //                 outputSizeInPixelsX/Y)。
 // 本项目没有动态分辨率偏移，inputViewport 与 inputSize 相同，所以只需要两个尺寸；
 // inputSize 必须与绑定的输入纹理尺寸一致（着色器会用它反推输出尺寸）。
-inline Fsr1Con easu(const QSize &inputSize, const QSize &outputSize)
-{
+inline Fsr1Con easu(const QSize &inputSize, const QSize &outputSize) {
     const float iw = float(qMax(1, inputSize.width()));
     const float ih = float(qMax(1, inputSize.height()));
     const float ow = float(qMax(1, outputSize.width()));
@@ -70,8 +69,7 @@ inline Fsr1Con easu(const QSize &inputSize, const QSize &outputSize)
 // 0 = 最大锐度，N > 0 表示锐度减半 N 次；内部换算成 exp2(-sharpness)。
 // AMD 的 RCAS 是 3x3 空间滤波，与分辨率无关，outputSize 只用于保持调用点对称，
 // 不参与常量计算。
-inline Fsr1Con rcas(const QSize &outputSize, float sharpness)
-{
+inline Fsr1Con rcas(const QSize &outputSize, float sharpness) {
     Q_UNUSED(outputSize);
     const float s = std::exp2(-sharpness);
 

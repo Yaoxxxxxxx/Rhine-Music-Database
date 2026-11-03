@@ -125,7 +125,6 @@ void MusicLibrary::enterDirectory(QJsonObject value) {
         valid(token, &m_directoryGeneration));
 }
 
-
 void MusicLibrary::loadArtistAlbums() {
     const auto folder = directory;
     if (isLocal() || !folder || folder->item["kind"] != "artist" || folder->albumsLoading ||

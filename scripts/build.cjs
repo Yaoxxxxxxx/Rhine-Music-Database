@@ -36,7 +36,6 @@ function run(command, args = [], env = {}) {
     }
 }
 
-
 /**
  * npm 11.6 起默认拒绝安装 remote 类型的依赖，而锁定的酷狗 SDK 正是 codeload tarball。
  * 只对声明在根 package.json 的远程来源放行，旧版 npm 不传该参数。
@@ -767,8 +766,10 @@ function deployApp(qt, config, existingBundle = '') {
         const previous = fs
             .readdirSync(parent)
             .filter((n) => n.startsWith(base + '.previous-') && /^\d+$/.test(n.slice(base.length + 10)))
-            .sort((first, second) =>
-                Number(second.slice(base.length + 10)) - Number(first.slice(base.length + 10)))[0];
+            .sort(
+                (first, second) =>
+                    Number(second.slice(base.length + 10)) - Number(first.slice(base.length + 10)),
+            )[0];
         if (previous) {
             const prevData = path.join(parent, previous, 'data');
             if (fs.existsSync(prevData)) {

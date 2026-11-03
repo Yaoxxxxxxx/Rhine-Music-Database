@@ -14,8 +14,7 @@
 
 namespace {
 
-bool check(bool result, const char *message)
-{
+bool check(bool result, const char *message) {
     if (!result) {
         std::fprintf(stderr, "%s\n", message);
     }
@@ -23,15 +22,12 @@ bool check(bool result, const char *message)
 }
 
 /// 环境变量类用例跑完要还原，否则同一进程里后面的用例会读到上一条的状态。
-struct EnvGuard
-{
-    explicit EnvGuard(const char *name) : key(name)
-    {
+struct EnvGuard {
+    explicit EnvGuard(const char *name) : key(name) {
         hadValue = qEnvironmentVariableIsSet(name);
         previous = qgetenv(name);
     }
-    ~EnvGuard()
-    {
+    ~EnvGuard() {
         if (hadValue) {
             qputenv(key.constData(), previous);
         } else {
@@ -43,14 +39,13 @@ struct EnvGuard
     bool hadValue = false;
 };
 
-bool parsesBooleans()
-{
+bool parsesBooleans() {
     bool ok = true;
     EnvGuard guard("RHINE_FG");
     const QVector<QPair<QByteArray, bool>> cases{
-        {"on", true},    {"ON", true},     {"1", true},      {"true", true},
-        {"yes", true},   {" on ", true},   {"off", false},   {"0", false},
-        {"false", false}, {"no", false},   {"", false},      {"随便写点什么", false},
+        {"on", true},     {"ON", true},   {"1", true},    {"true", true},
+        {"yes", true},    {" on ", true}, {"off", false}, {"0", false},
+        {"false", false}, {"no", false},  {"", false},    {"随便写点什么", false},
     };
     for (const auto &item : cases) {
         if (item.first.isEmpty()) {
@@ -69,8 +64,7 @@ bool parsesBooleans()
 }
 
 /// 设置页开关 → 环境变量 → 解析结果，这条链就是"点一下立刻生效"的全部依据。
-bool preferenceReachesConfig()
-{
+bool preferenceReachesConfig() {
     bool ok = true;
     EnvGuard guard("RHINE_FG");
     qunsetenv("RHINE_FG");
@@ -90,8 +84,7 @@ bool preferenceReachesConfig()
     return ok;
 }
 
-bool keepsCameraDefaults()
-{
+bool keepsCameraDefaults() {
     const FgConfig config;
     bool ok = true;
     // 默认值取的是 Rhine 场景真实量级（NativeSceneCamera 的 near/far），
@@ -103,8 +96,7 @@ bool keepsCameraDefaults()
     return ok;
 }
 
-bool snapshotLifecycle()
-{
+bool snapshotLifecycle() {
     bool ok = true;
     RhineFg::publishCapability(false, false, false, QStringLiteral("未编入"));
     ok &= check(!RhineFg::capability().compiledIn, "快照应记住 compiledIn=false");
@@ -133,20 +125,18 @@ bool snapshotLifecycle()
     RhineFg::publishInactive(QStringLiteral("交换链创建失败"));
     ok &= check(!RhineFg::capability().presentLayerActive, "回退后呈现层应为未接管");
     ok &= check(RhineFg::capability().compiledIn, "回退不该改变是否编入");
-    ok &= check(RhineFg::capability().reason == QStringLiteral("交换链创建失败"),
-                "回退后应记录失败原因");
+    ok &= check(RhineFg::capability().reason == QStringLiteral("交换链创建失败"), "回退后应记录失败原因");
     RhineFg::publishCapability(true, false, false);
     return ok;
 }
 
-bool settingsRowStates()
-{
+bool settingsRowStates() {
     using RhineFg::frameGenerationUi;
     bool ok = true;
 
     // 1. 没编入：置灰，文案就是原因。
-    auto ui = frameGenerationUi(false, false, false, QStringLiteral("此构建未编入 Vulkan 帧生成"),
-                                true, true);
+    auto ui =
+        frameGenerationUi(false, false, false, QStringLiteral("此构建未编入 Vulkan 帧生成"), true, true);
     ok &= check(!ui.clickable, "没编入时不能点");
     ok &= check(ui.value == QStringLiteral("此构建未编入 Vulkan 帧生成"), "没编入应展示原因");
     ui = frameGenerationUi(false, false, false, QString(), true, false);
@@ -186,8 +176,7 @@ bool settingsRowStates()
     return ok;
 }
 
-bool frameTapGating()
-{
+bool frameTapGating() {
     bool ok = true;
     RhineFg::FrameInputs inputs;
     inputs.renderSize = QSize(640, 360);
@@ -220,8 +209,7 @@ bool frameTapGating()
     return ok;
 }
 
-bool statsChannel()
-{
+bool statsChannel() {
     bool ok = true;
     RhineFg::Stats sample;
     sample.layerActive = true;
@@ -245,9 +233,9 @@ bool statsChannel()
     ok &= check(published.presented == 120 && published.interpolated == 60 && published.rendered == 60,
                 "累计计数必须原样带出去（面板靠差值算 FPS）");
     ok &= check(published.prepareMs == 0.8 && published.dispatchMs == 3.1, "分项耗时必须原样带出去");
-    ok &= check(published.swapchainImages == 5
-                    && published.swapchainFormat == QStringLiteral("B8G8R8A8_UNORM"),
-                "交换链信息必须原样带出去");
+    ok &=
+        check(published.swapchainImages == 5 && published.swapchainFormat == QStringLiteral("B8G8R8A8_UNORM"),
+              "交换链信息必须原样带出去");
     ok &= check(published.renderSize == QSize(1262, 1370), "渲染尺寸必须原样带出去");
     ok &= check(published.serial > 0, "publish 必须推进 serial");
 
@@ -266,8 +254,7 @@ bool statsChannel()
 
 } // namespace
 
-int main()
-{
+int main() {
     bool ok = true;
     ok &= parsesBooleans();
     ok &= keepsCameraDefaults();

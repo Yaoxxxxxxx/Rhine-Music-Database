@@ -77,14 +77,14 @@ bool plausible(const QString &text) {
 
 #ifdef Q_OS_WIN
 bool decodeWindowsCodePage(UINT codePage, const QByteArray &bytes, QString &out) {
-    const int wideLength = MultiByteToWideChar(codePage, MB_ERR_INVALID_CHARS, bytes.constData(),
-                                               int(bytes.size()), nullptr, 0);
+    const int wideLength =
+        MultiByteToWideChar(codePage, MB_ERR_INVALID_CHARS, bytes.constData(), int(bytes.size()), nullptr, 0);
     if (wideLength <= 0) {
         return false;
     }
     std::wstring wide(size_t(wideLength), L'\0');
-    if (MultiByteToWideChar(codePage, MB_ERR_INVALID_CHARS, bytes.constData(), int(bytes.size()),
-                            wide.data(), wideLength) <= 0) {
+    if (MultiByteToWideChar(codePage, MB_ERR_INVALID_CHARS, bytes.constData(), int(bytes.size()), wide.data(),
+                            wideLength) <= 0) {
         return false;
     }
     out = QString::fromWCharArray(wide.data(), wideLength);
@@ -240,8 +240,8 @@ DecodeResult decode(const QByteArray &bytes, const QString &hint) {
     }
 
     // 二、受控猜测：GBK → Big5 → Shift-JIS。
-    for (const auto &candidate : {QStringLiteral("gbk"), QStringLiteral("big5"),
-                                  QStringLiteral("shift-jis")}) {
+    for (const auto &candidate :
+         {QStringLiteral("gbk"), QStringLiteral("big5"), QStringLiteral("shift-jis")}) {
         if (decodeLegacy(candidate, bytes, text)) {
             result.text = text;
             result.encoding = candidate;
@@ -258,8 +258,7 @@ QString cleanText(const QString &value) {
     text.replace(QStringLiteral("&gt;"), QLatin1String(">"));
     text.replace(QStringLiteral("&quot;"), QLatin1String("\""));
     text.replace(QStringLiteral("&apos;"), QLatin1String("'"));
-    static const QRegularExpression numericEntity(
-        QStringLiteral("&#(x[0-9a-fA-F]+|\\d+);"));
+    static const QRegularExpression numericEntity(QStringLiteral("&#(x[0-9a-fA-F]+|\\d+);"));
     qsizetype at = 0;
     while (true) {
         const auto match = numericEntity.match(text, at);
@@ -269,8 +268,7 @@ QString cleanText(const QString &value) {
         const auto code = match.captured(1);
         const bool hex = code.at(0).toLower() == u'x';
         bool valid = false;
-        const auto point =
-            hex ? code.mid(1).toULongLong(&valid, 16) : code.toULongLong(&valid, 10);
+        const auto point = hex ? code.mid(1).toULongLong(&valid, 16) : code.toULongLong(&valid, 10);
         QString replacement = match.captured(0);
         if (valid && point <= 0x10FFFF) {
             char32_t codePoint = static_cast<char32_t>(point);
@@ -286,9 +284,9 @@ QString cleanText(const QString &value) {
 
 QJsonObject parseTags(const QString &content) {
     QJsonObject tags;
-    static const QRegularExpression tagLine(
-        QStringLiteral("^\\s*\\[([a-z]+):([^]\\n]*)\\]\\s*$"),
-        QRegularExpression::CaseInsensitiveOption | QRegularExpression::MultilineOption);
+    static const QRegularExpression tagLine(QStringLiteral("^\\s*\\[([a-z]+):([^]\\n]*)\\]\\s*$"),
+                                            QRegularExpression::CaseInsensitiveOption |
+                                                QRegularExpression::MultilineOption);
     auto iterator = tagLine.globalMatch(content);
     while (iterator.hasNext()) {
         const auto match = iterator.next();
@@ -328,11 +326,9 @@ QJsonObject normalize(const QString &rawText, const QString &encoding) {
     const auto content = cleanText(rawText);
     static const QRegularExpression lineStamps(
         QStringLiteral("^\\s*((?:\\[-?\\d+:\\d+(?:[.:]\\d+)?\\])+)(.*)$"));
-    static const QRegularExpression stampToken(
-        QStringLiteral("\\[([-+]?\\d+):(\\d+)(?:[.:](\\d+))?\\]"));
+    static const QRegularExpression stampToken(QStringLiteral("\\[([-+]?\\d+):(\\d+)(?:[.:](\\d+))?\\]"));
     static const QRegularExpression translationSuffix(QStringLiteral("【(.*)】$"));
-    static const QRegularExpression wordTag(
-        QStringLiteral("<(\\d+):(\\d+)(?:[.:](\\d+))?>"));
+    static const QRegularExpression wordTag(QStringLiteral("<(\\d+):(\\d+)(?:[.:](\\d+))?>"));
 
     std::vector<LrcLine> lines;
     const auto rows = content.split(QLatin1Char('\n'));
@@ -356,9 +352,8 @@ QJsonObject normalize(const QString &rawText, const QString &encoding) {
             const auto stamp = stamps.next();
             const double minutes = stamp.captured(1).toDouble();
             const double seconds = stamp.captured(2).toDouble();
-            const double fraction = stamp.captured(3).isEmpty()
-                                        ? 0.0
-                                        : (QStringLiteral("0.") + stamp.captured(3)).toDouble();
+            const double fraction =
+                stamp.captured(3).isEmpty() ? 0.0 : (QStringLiteral("0.") + stamp.captured(3)).toDouble();
             const auto startMs = qRound((minutes * 60 + seconds) * 1000 + fraction * 1000);
             LrcLine line;
             line.startMs = startMs;
@@ -375,14 +370,12 @@ QJsonObject normalize(const QString &rawText, const QString &encoding) {
                     const auto spoken = remainder.left(word.capturedStart(0));
                     wordText += spoken;
                     if (!wordArray.isEmpty()) {
-                        wordArray.append(QJsonObject{
-                            {"startMs", wordStart},
-                            {"endMs", word.captured(1).toDouble() * 60000 +
-                                          word.captured(2).toDouble() * 1000},
-                            {"text", spoken.trimmed()}});
+                        wordArray.append(QJsonObject{{"startMs", wordStart},
+                                                     {"endMs", word.captured(1).toDouble() * 60000 +
+                                                                   word.captured(2).toDouble() * 1000},
+                                                     {"text", spoken.trimmed()}});
                     }
-                    wordStart = word.captured(1).toDouble() * 60000 +
-                                word.captured(2).toDouble() * 1000;
+                    wordStart = word.captured(1).toDouble() * 60000 + word.captured(2).toDouble() * 1000;
                     remainder = remainder.mid(word.capturedEnd(0));
                 }
                 wordText = wordText.trimmed();
@@ -404,9 +397,7 @@ QJsonObject normalize(const QString &rawText, const QString &encoding) {
         }
     }
     std::stable_sort(lines.begin(), lines.end(),
-                     [](const LrcLine &left, const LrcLine &right) {
-                         return left.startMs < right.startMs;
-                     });
+                     [](const LrcLine &left, const LrcLine &right) { return left.startMs < right.startMs; });
 
     const auto tags = parseTags(content);
     // 只移除具有明确角色或文件头身份的署名行（LyricsCore 语义）。
@@ -451,9 +442,9 @@ QJsonObject normalize(const QString &rawText, const QString &encoding) {
     const bool timed = hasContent && uniqueStarts.size() > 1;
     QString plainText;
     if (!timed) {
-        static const QRegularExpression tagLineOnly(
-            QStringLiteral("^\\[[a-z]+:.*\\]\\s*$"),
-            QRegularExpression::CaseInsensitiveOption | QRegularExpression::MultilineOption);
+        static const QRegularExpression tagLineOnly(QStringLiteral("^\\[[a-z]+:.*\\]\\s*$"),
+                                                    QRegularExpression::CaseInsensitiveOption |
+                                                        QRegularExpression::MultilineOption);
         static const QRegularExpression anyBracket(QStringLiteral("\\[[^]\\n]+\\]"));
         plainText = content;
         plainText.remove(tagLineOnly);
@@ -463,8 +454,7 @@ QJsonObject normalize(const QString &rawText, const QString &encoding) {
 
     QJsonObject document{{"version", 1},
                          {"source", QStringLiteral("local")},
-                         {"timing", timed ? (wordTimed ? QStringLiteral("word")
-                                                       : QStringLiteral("line"))
+                         {"timing", timed ? (wordTimed ? QStringLiteral("word") : QStringLiteral("line"))
                                           : QStringLiteral("none")},
                          {"offsetMs", offsetMs},
                          {"lines", timed ? lrcLinesToJson(lines) : QJsonArray()},

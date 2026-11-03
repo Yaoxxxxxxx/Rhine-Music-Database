@@ -33,9 +33,8 @@ class QRhiTexture;
  * 只能在帧外调用（GPU 空闲时）。dispatch()/prepare() 必须在 QRhiCommandBuffer 的
  * beginExternal()/endExternal() 之间调用。
  */
-class FgBackend : public RhineRender::FrameGenerator
-{
-public:
+class FgBackend : public RhineRender::FrameGenerator {
+  public:
     FgBackend();
     ~FgBackend();
     FgBackend(const FgBackend &) = delete;
@@ -64,7 +63,6 @@ public:
     /// 销毁上下文与内部资源。调用前必须保证 GPU 不再使用这些资源。
     void release();
 
-
     /// 相机参数。fovYRadians 是弧度；frameTimeMs 是毫秒。
     void setCamera(float nearPlane, float farPlane, float fovYRadians, float frameTimeMs);
 
@@ -74,8 +72,8 @@ public:
     /// 世界空间相机姿态。SDK 从 1.1.4 起把它当"最佳质量"输入：
     /// 全零时会打印警告，并用退化的相机基重建运动矢量场。默认给一组合理的
     /// 右手系基（上 +Y、右 +X、前 -Z），调用方有真实姿态时应覆盖。
-    void setCameraPose(const QVector3D &position, const QVector3D &up,
-                       const QVector3D &right, const QVector3D &forward);
+    void setCameraPose(const QVector3D &position, const QVector3D &up, const QVector3D &right,
+                       const QVector3D &forward);
 
     /// 标记相机不连续：下一帧 prepare/dispatch 会带 reset，SDK 会丢弃历史。
     void requestReset();
@@ -85,8 +83,8 @@ public:
      * colorHudLess 是显示分辨率的无 HUD 颜色，OF 用它估光流，避免 HUD 被当成
      * 真实运动而产生残影。depth / motionVectors 是渲染分辨率的输入。
      */
-    bool prepare(QRhi *rhi, QRhiCommandBuffer *commandBuffer, QRhiTexture *colorHudLess,
-                 QRhiTexture *depth, QRhiTexture *motionVectors);
+    bool prepare(QRhi *rhi, QRhiCommandBuffer *commandBuffer, QRhiTexture *colorHudLess, QRhiTexture *depth,
+                 QRhiTexture *motionVectors);
 
     /**
      * 跑 frame interpolation，把插值帧写进 output。
@@ -97,8 +95,8 @@ public:
      * 注意：返回 true 只代表命令记录成功。当 lastFrameReset() 为 true 时，
      * SDK 跳过了准备 pass，这一帧的插值结果不可用，调用方应当直接呈现 color。
      */
-    bool dispatch(QRhi *rhi, QRhiCommandBuffer *commandBuffer, QRhiTexture *color,
-                  QRhiTexture *colorHudLess, QRhiTexture *output = nullptr);
+    bool dispatch(QRhi *rhi, QRhiCommandBuffer *commandBuffer, QRhiTexture *color, QRhiTexture *colorHudLess,
+                  QRhiTexture *output = nullptr);
 
     /// 内部插值帧纹理（显示分辨率，格式同 resize 的 colorFormat）。未 resize 时为空。
     QRhiTexture *output() const;
@@ -111,7 +109,7 @@ public:
     /// 最近一次失败的可读原因，供上层打日志或决定降级。
     QString lastError() const;
 
-private:
+  private:
     /// 首帧把内部裸图与输出纹理从 UNDEFINED 转到 GENERAL。
     /// 参数是 VkCommandBuffer，但头文件不引 Vulkan，所以用 void* 传递。
     void recordInitialTransitions(void *commandList);

@@ -12,16 +12,14 @@
 
 namespace {
 
-bool check(bool result, const char *message)
-{
+bool check(bool result, const char *message) {
     if (!result) {
         std::fprintf(stderr, "%s\n", message);
     }
     return result;
 }
 
-QString valueOf(const QVector<QPair<QString, QString>> &environment, const QString &name)
-{
+QString valueOf(const QVector<QPair<QString, QString>> &environment, const QString &name) {
     for (const auto &entry : environment) {
         if (entry.first == name) {
             return entry.second;
@@ -30,8 +28,7 @@ QString valueOf(const QVector<QPair<QString, QString>> &environment, const QStri
     return {};
 }
 
-LinuxGpuDevice gpu(const QString &card, const QString &pci, quint32 vendor, const QString &driver)
-{
+LinuxGpuDevice gpu(const QString &card, const QString &pci, quint32 vendor, const QString &driver) {
     LinuxGpuDevice device;
     device.card = card;
     device.pciAddress = pci;
@@ -41,8 +38,7 @@ LinuxGpuDevice gpu(const QString &card, const QString &pci, quint32 vendor, cons
 }
 
 /// 三个平台都要过：序号映射只看设备表，与真实硬件无关。
-bool mapsIndexToDriverVariables()
-{
+bool mapsIndexToDriverVariables() {
     const QVector<LinuxGpuDevice> devices{
         gpu(QStringLiteral("card0"), QStringLiteral("0000:01:00.0"), 0x10de, QStringLiteral("nvidia")),
         gpu(QStringLiteral("card1"), QStringLiteral("0000:00:02.0"), 0x8086, QStringLiteral("i915")),
@@ -55,8 +51,7 @@ bool mapsIndexToDriverVariables()
                 "选中 NVIDIA 时必须启用 PRIME 离屏渲染");
     ok &= check(valueOf(nvidia, QStringLiteral("__VK_LAYER_NV_optimus")) == QLatin1String("NVIDIA_only"),
                 "选中 NVIDIA 时图层必须把 NVIDIA 卡排到首位");
-    ok &= check(valueOf(nvidia, QStringLiteral("DRI_PRIME")).isEmpty(),
-                "NVIDIA 专有驱动不该收到 DRI_PRIME");
+    ok &= check(valueOf(nvidia, QStringLiteral("DRI_PRIME")).isEmpty(), "NVIDIA 专有驱动不该收到 DRI_PRIME");
 
     // 选中 Intel 核显且系统装了 NVIDIA ICD：选卡 + 让非 NVIDIA 排首位。
     const auto intel = RhineLinuxGpu::planEnvironment(devices, 1, true);
@@ -74,21 +69,19 @@ bool mapsIndexToDriverVariables()
 
     // 序号不存在（换卡 / 拔卡 / 配置写坏）：空表 + 原因，启动侧据此保持驱动默认。
     QString reason;
-    ok &= check(RhineLinuxGpu::planEnvironment(devices, 3, true, &reason).isEmpty(),
-                "越界序号必须回退");
+    ok &= check(RhineLinuxGpu::planEnvironment(devices, 3, true, &reason).isEmpty(), "越界序号必须回退");
     ok &= check(!reason.isEmpty(), "回退时必须留下原因，日志才有据可查");
     ok &= check(RhineLinuxGpu::planEnvironment(devices, -1, true).isEmpty(), "负序号必须回退");
     ok &= check(RhineLinuxGpu::planEnvironment({}, 0, true).isEmpty(), "空设备表必须回退");
 
     // 读不出 vendor 的条目没有选择手段，也不能被选中。
-    const QVector<LinuxGpuDevice> broken{gpu(QStringLiteral("card9"), QStringLiteral("0000:09:00.0"), 0,
-                                             QStringLiteral("nvidia"))};
+    const QVector<LinuxGpuDevice> broken{
+        gpu(QStringLiteral("card9"), QStringLiteral("0000:09:00.0"), 0, QStringLiteral("nvidia"))};
     ok &= check(RhineLinuxGpu::planEnvironment(broken, 0, true).isEmpty(), "缺少 vendor 的条目必须回退");
     return ok;
 }
 
-bool convertsPciAddress()
-{
+bool convertsPciAddress() {
     bool ok = true;
     ok &= check(RhineLinuxGpu::pciPrimeSelector(QStringLiteral("0000:01:00.0")) ==
                     QLatin1String("pci-0000_01_00_0"),
@@ -99,15 +92,13 @@ bool convertsPciAddress()
     // 来自 sysfs 以外的东西（或读文件时没去掉换行）一律拒绝，绝不猜。
     ok &= check(RhineLinuxGpu::pciPrimeSelector(QStringLiteral("0000:01:00.0\n")).isEmpty(),
                 "带换行的地址必须被拒绝");
-    ok &= check(RhineLinuxGpu::pciPrimeSelector(QStringLiteral("nvidia")).isEmpty(),
-                "非 PCI 地址必须被拒绝");
+    ok &= check(RhineLinuxGpu::pciPrimeSelector(QStringLiteral("nvidia")).isEmpty(), "非 PCI 地址必须被拒绝");
     ok &= check(RhineLinuxGpu::pciPrimeSelector({}).isEmpty(), "空地址必须被拒绝");
     return ok;
 }
 
 #if defined(Q_OS_LINUX)
-bool writeFile(const QString &path, const QByteArray &content)
-{
+bool writeFile(const QString &path, const QByteArray &content) {
     QFile file(path);
     if (!file.open(QIODevice::WriteOnly)) {
         return false;
@@ -119,8 +110,7 @@ bool writeFile(const QString &path, const QByteArray &content)
 /// card10 = virtio 显卡（用来验证序号按数字排序，而不是按字符串）。
 /// 同时放两个必须被忽略的条目：显示连接器 card0-DP-1，以及没有 PCI 父设备的 card3。
 bool makeGpu(const QString &root, const QString &card, const QString &pci, const QString &vendor,
-             const QString &driver)
-{
+             const QString &driver) {
     const auto devicePath = root + QStringLiteral("/pci/") + pci;
     if (!QDir().mkpath(devicePath) || !QDir().mkpath(root + QStringLiteral("/drivers/") + driver) ||
         !QDir().mkpath(root + QStringLiteral("/drm/") + card)) {
@@ -136,8 +126,7 @@ bool makeGpu(const QString &root, const QString &card, const QString &pci, const
     return QFile::link(root + QStringLiteral("/drivers/") + driver, deviceLink + QStringLiteral("/driver"));
 }
 
-bool parsesSysfs()
-{
+bool parsesSysfs() {
     QTemporaryDir root;
     if (!root.isValid()) {
         return check(false, "临时目录创建失败");
@@ -166,8 +155,7 @@ bool parsesSysfs()
     if (devices.size() == 4) {
         ok &= check(devices.at(0).card == QLatin1String("card0") &&
                         devices.at(0).pciAddress == QLatin1String("0000:01:00.0") &&
-                        devices.at(0).vendor == 0x10de &&
-                        devices.at(0).driver == QLatin1String("nvidia"),
+                        devices.at(0).vendor == 0x10de && devices.at(0).driver == QLatin1String("nvidia"),
                     "序号 0 应是 NVIDIA 卡");
         ok &= check(devices.at(1).vendor == 0x8086 && devices.at(1).driver == QLatin1String("i915"),
                     "序号 1 应是 Intel 核显");
@@ -185,12 +173,10 @@ bool parsesSysfs()
     ok &= check(!RhineLinuxGpu::nvidiaIcdInstalled(base + QStringLiteral("/icd")),
                 "目录不存在时必须认为没装 NVIDIA ICD");
     ok &= check(QDir().mkpath(base + QStringLiteral("/icd")), "构造 ICD 目录失败");
-    ok &= check(writeFile(base + QStringLiteral("/icd/intel_icd.json"), "{}"),
-                "写入 Intel ICD 失败");
+    ok &= check(writeFile(base + QStringLiteral("/icd/intel_icd.json"), "{}"), "写入 Intel ICD 失败");
     ok &= check(!RhineLinuxGpu::nvidiaIcdInstalled(base + QStringLiteral("/icd")),
                 "只有 Intel ICD 时不该认为装了 NVIDIA 驱动");
-    ok &= check(writeFile(base + QStringLiteral("/icd/nvidia_icd.json"), "{}"),
-                "写入 NVIDIA ICD 失败");
+    ok &= check(writeFile(base + QStringLiteral("/icd/nvidia_icd.json"), "{}"), "写入 NVIDIA ICD 失败");
     ok &= check(RhineLinuxGpu::nvidiaIcdInstalled(base + QStringLiteral("/icd")),
                 "有 nvidia_icd.json 时必须认为装了 NVIDIA 驱动");
     return ok;
@@ -199,8 +185,7 @@ bool parsesSysfs()
 
 } // namespace
 
-int main()
-{
+int main() {
     bool ok = true;
     ok &= mapsIndexToDriverVariables();
     ok &= convertsPciAddress();
